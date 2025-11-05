@@ -345,14 +345,17 @@ vectorized_DT <- function() {
   matrix_x1 <- replicate(100000, rnorm(60))
   matrix_x2 <- replicate(100000, rnorm(60))
   
-  setDT(as.data.frame(matrix_x1))
-  setDT(as.data.frame(matrix_x2))
+  matrix_x1 <- as.data.frame(matrix_x1)
+  matrix_x2 <- as.data.frame(matrix_x2)
+  
+  setDT(matrix_x1)
+  setDT(matrix_x2)
   
   diff_matrix <- matrix_x1 - matrix_x2
   
   # analysis 1
   # take only first 20 rows
-  mean_diff_matrix_20 <- colMeans(diff_matrix[1:20,])
+  mean_diff_matrix_20 <- diff_matrix[1:20, lapply(.SD, mean)]
   
   z_matrix_20 <- mean_diff_matrix_20 * sqrt( 20 / (2*sigma2) )
   
@@ -362,11 +365,11 @@ vectorized_DT <- function() {
   moved_to_analysis2 <- z_matrix_20 > 0 & z_matrix_20 < 2.5
   
   # select those columns
-  diff_matrix_40 <- diff_matrix[, moved_to_analysis2]
+  diff_matrix_40 <- diff_matrix[, ..moved_to_analysis2]
   
   # column mean of these
   # take only the first 40 rows
-  mean_diff_matrix_40 <- colMeans(diff_matrix_40[1:40,])
+  mean_diff_matrix_40 <- diff_matrix_40[1:40, lapply(.SD, mean)]
   
   z_matrix_40 <- mean_diff_matrix_40 * sqrt( 40 / (2*sigma2) )
   
@@ -377,11 +380,11 @@ vectorized_DT <- function() {
   
   # select those columns from those who moved to anlaysis 2
   # therefore, filter the difference matrix of those who moved to analysis 
-  diff_matrix_60 <- diff_matrix_40[, moved_to_analysis3]
+  diff_matrix_60 <- diff_matrix_40[, ..moved_to_analysis3]
   
   # column mean of these
   # take all 60 rows
-  mean_diff_matrix_60 <- colMeans(diff_matrix_60)
+  mean_diff_matrix_60 <- diff_matrix_60[, lapply(.SD, mean)]
   
   z_matrix_60 <- mean_diff_matrix_60 * sqrt( 60 / (2*sigma2) )
   
@@ -399,24 +402,10 @@ vectorized_DT <- function() {
 }
 ```
 
-```{r}
-vectorized_DT()
-```
 
 ```{r, cache=TRUE}
-bench::mark(
-  for_loops(),
-  vectorized(),
-  vectorized_DT(),
-  check = FALSE
-)
+# vectorized_DT()
 ```
-
-| function   | min   | median | mem_alloc |
-|------------|-------|--------|-----------|
-| for_loops  | 1.53s |  1.52s |     183MB |
-| vectorized | 938ms |  938ms |     413MB |
-| vectorized_DT | 3.38ms |  3.38ms |     577MB |
 
 The vectorized implementation is about 60% faster but requires 2.25 times as much memory. This is likely because there are fewer for loops in the vectorized implementation, but the matrices for calculation the random normal vectors and $z$ scores are large and must remain in memory.
 
@@ -823,6 +812,10 @@ gsd_simulations_old <- function(n_analyses = 3,
   # vector to collect the sum of futility and efficacy probabilities
   sum_probs <- c()
   
+  # get alpha and power
+  alpha <- 0
+  power <- 0
+  
   for (i in 1:n_analyses) {
     
     # pull the probabilities from the list
@@ -832,17 +825,20 @@ gsd_simulations_old <- function(n_analyses = 3,
     # 3:4 because we want to calculate under the alternative
     sum_probs <- c(sum_probs, sum(tmp_probs[3:4]))
     
+    alpha <- tmp_probs[2] + alpha
+    power <- tmp_probs[4] + power
+    
   }
   
   # calculate the expected sample size
   ess <- sum(n_patients * sum_probs)
   
   # add the expected sample size to the list
-  return_values <- append(probs_to_return, ess)
+  return_values <- append(probs_to_return, values = c(ess, alpha, power))
   
   # name the list
   names_for_list <- as.vector(sapply("analysis_", paste0, 1:n_analyses))
-  names_for_list <- c(names_for_list, "expected_sample_size")
+  names_for_list <- c(names_for_list, "expected_sample_size", "alpha", "power")
   names(return_values) <- names_for_list
   
   # return probabilities and ESS
@@ -881,18 +877,25 @@ bench::mark(
 39.9e-6 / 551.9e-9
 ```
 
+R's `pnorm` function is approximately 72 times faster than evaluating the multidimensional integral using `pmvnorm`. This likely contributes to the speed discrepancy noted above.
+
 ```{r}
+# two dimensional sigma
 SIGMA2 <- matrix(
   c(1, sqrt(n1/n2), 
     sqrt(n1/n2), 1),
   nrow = 2
 )
+
+# two dimensional upper bounds
 upper_bounds2 <- c(0, Inf)
 lower_bounds2 <- c(-Inf, -Inf)
 
 bench::mark(
+  # 2d
   pmvnorm(lower = lower_bounds2, upper = upper_bounds2,
           mean = c(0,0), corr = SIGMA2),
+  # 3d
   pmvnorm(lower = lower_bounds, upper = upper_bounds,
           mean = mean_0, corr = SIGMA),
   check = FALSE
@@ -903,6 +906,207 @@ Two and three dimensional integrals appear to be approximately the same speed.
 
 ## Maximum ESS with interval bisection
 
+Interval bisection is used to find the optimum of a function with a single global optimum. In this case, the expected sample size as a function of the true value of the difference between two groups ($\delta$) is known to have a single global maximum. 
+
+The iterative process for interval bisection is:
+1. Initialize the $\mathbf{x}$ values for the expected sample size function ($\mathbf{x} = \{\delta_1, \delta_2\}$).
+2. Calculate the expected sample size for this vector of values.
+3. Replace the value of either $\delta_1$ or $\delta_2$ by $\frac{\delta_1 - \delta_2}{2}$ for the $\delta \in \mathbf{x}$ with the lower expected sample size.
+4. Repeat until the difference $|\delta_1 - \delta_2 < \epsilon |$, where $\epsilon$ is some small predetermined absolute tolerance.
+5. Return $\delta$.
+
+This is the implementation below. It takes, as function values, an expected sample size calculator, an absolute tolerance value $\epsilon$, and the two initial $\delta$s.
+
+```{r}
+max_ess <- function(gsd_simulator = gsd_simulations_old, 
+                    epsilon = 0.0001,
+                    delta1 = 0,
+                    delta2 = 2) {
+  
+  while (abs(delta1 - delta2) > epsilon) {
+    
+    # calculate expected sample size
+    ess1 <- gsd_simulations_old(alt_hypothesis = delta1)$expected_sample_size
+    ess2 <- gsd_simulations_old(alt_hypothesis = delta2)$expected_sample_size
+    
+    # check conditions
+    if (ess1 == ess2) {
+  
+      print("Reinitializing deltas...")
+      delta1 <- 0
+      delta2 <- delta2 + 0.3
+      
+    } else if (ess1 > ess2) {
+      
+      delta2 <- (delta2 + delta1) / 2
+      
+    } else {
+      
+      delta1 <- (delta2 + delta1) / 2
+      
+    }
+    
+  }
+  
+  return(
+    c(delta1 = delta1, 
+      delta2 = delta2, 
+      ess1 = ess1, 
+      ess2 = ess2)
+  )
+}
+```
+
+```{r}
+max_ess()
+```
 
 
 ## Triagular designs
+
+a triangular test for one-sided group sequential clinical trial designs.
+
+| Variable          | Meaning                                             |
+|-------------------|-----------------------------------------------------|
+| $L$               | Number of planned analyses                          |
+| $l=\{1,\dots,L\}$ | Analysis $l$ is from 1 to $L$                       |
+| $\{0, 1\}$        | Treatment group index                               |
+| $n_{0l} = ln$     | Number of patients at $l$th analysis, group 0       |
+| $n_{1l} = rln$    | Number of patients at $l$th analysis, group 1       |
+| $r$               | Allocation ratio, group 1 relative to group 0       |
+| $I_l$             | Fisher information at $l$th analysis                |
+| $\delta$          | Clinically relevant difference                      |
+| $\alpha$          | Type I error                                        |
+| $\beta$           | Type II error                                       |
+| $e_l$             | Upper stopping boundary for $l$th analysis          |
+| $f_l$             | Lower stopping boundary for $l$th analysis          |
+| $z_p$             | Value of standard normal cdf up to probability $p$  |
+
+Recall that, for this case of a normally distributed outcome variable, the Fisher information is
+$$
+I_l = \left( \frac{\sigma_0^2}{n_{0l}} + \frac{\sigma_1^2}{n_{1l}} \right)^{-1} = \left( \frac{\sigma_0^2}{ln} + \frac{\sigma_1^2}{rln} \right)^{-1}
+$$
+
+Assuming that $\sigma_0$ and $\sigma_1$ are equal, $\sigma = \sigma_0 = \sigma_1$, and that $r = 1$, then $I_l$ simplifies to
+$$
+I_l = \frac{ln}{2\sigma^2}
+$$
+
+Using the above, we write the bounds for the triangular test:
+
+$$
+e_l = \left[ \frac{2}{\widetilde{\delta}} \log\left( \frac{1}{2\alpha} \right) - 0.583\left( \frac{I_L}{L} \right)^{0.5} + \frac{\widetilde{\delta}}{4} \cdot \frac{l}{L} \cdot I_L \right]\frac{1}{I_l^{0.5}}
+$$
+
+$$
+f_l = \left[ -\frac{2}{\widetilde{\delta}} \log\left( \frac{1}{2\alpha} \right) + 0.583\left( \frac{I_L}{L} \right)^{0.5} + \frac{3\widetilde{\delta}}{4} \cdot \frac{l}{L} \cdot I_L \right]\frac{1}{I_l^{0.5}}
+$$
+
+where
+$$
+\widetilde{\delta} = \frac{2\,z_{1-\alpha/2}\, \delta}{z_{1-\alpha/2}+z_{1-\beta}}
+$$
+
+and
+$$
+I_L = \left[ \left\{ \frac{4(0.583)^2}{L} + 8\log\left(\frac{1}{2\alpha}\right)  \right\}^{0.5} -\frac{2(0.583)}{L^{0.5}} \right]^2 \frac{1}{\widetilde{\delta}}
+$$
+
+Write the code to calculate the boundaries.
+
+```{r}
+triangular_bounds <- function(n_analyses = 3,
+                              alpha = 0.05,
+                              beta = 0.1,
+                              delta = 0.5,
+                              allocation_ratio = 1,
+                              n = 20,
+                              sigma_0 = 1,
+                              sigma_1 = 1) {
+
+  delta_tild <- (2 * qnorm( 1-(alpha/2) ) * delta) / (qnorm( 1-(alpha/2) ) + qnorm( 1-beta ))
+  
+  log_1over2alpha <- log(1/(2*alpha))
+  
+  I_L_term1 <- (4 * 0.583^2) / n_analyses
+  I_L_term2 <- 8 * log_1over2alpha
+  I_L_term3 <- (2 * 0.583) / sqrt(n_analyses)
+  
+  I_L <- ( sqrt(I_L_term1 + I_L_term2) - I_L_term3 )^2 * (1 / delta_tild)
+  
+  e <- vector(mode = "numeric", length = n_analyses)
+  f <- vector(mode = "numeric", length = n_analyses)
+  
+  bounds_term1 <- (2/delta_tild) * log_1over2alpha
+  bounds_term2 <- 0.583 * sqrt(I_L / n_analyses)
+  
+  for (i in 1:n_analyses) {
+    
+    information_term1 <- sigma_0 / (i * n)
+    information_term2 <- sigma_1 / (allocation_ratio * i * n)
+    
+    information <- 1 / (information_term1 + information_term2)
+    
+    sqrt_inv_info_l <- 1 / sqrt(information)
+    
+    e_l <- (bounds_term1 - bounds_term2 + ( (0.25*delta_tild) * (i/n_analyses) * I_L ) ) * sqrt_inv_info_l
+  
+    f_l <- ( (-1*bounds_term1) + bounds_term2 + ( (0.75*delta_tild) * (i/n_analyses) * I_L ) ) * sqrt_inv_info_l
+  
+    e[i] <- e_l
+    f[i] <- f_l
+    
+  }
+  
+  return(list(e = e, f = f))
+}
+```
+
+
+Confirm that these calculated boundaries are correct using the `gsd_simulation_old`:
+
+```{r}
+delta <- 0.5
+
+bounds <- triangular_bounds(delta = delta, beta = 0.4)
+
+upper <- bounds$e
+lower <- bounds$f 
+
+gsd_simulations_old(n_analyses = 3,
+                    upper_bounds = upper,
+                    lower_bounds = lower,
+                    n_patients = c(20, 40, 60),
+                    null_hypothesis = 0,
+                    alt_hypothesis = delta,
+                    variance = 1)
+```
+
+
+
+```{r}
+ggplot() +
+  geom_line(mapping = aes(x = c(1,2,3), y = upper)) +
+  geom_line(mapping = aes(x = c(1,2,3), y = lower))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
