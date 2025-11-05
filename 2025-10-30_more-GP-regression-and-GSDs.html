@@ -2381,8 +2381,8 @@ information &lt;- function(n, variance) sqrt(n/(2*variance))</code></pre>
 <pre><code>## # A tibble: 2 × 6
 ##   expression                 min   median `itr/sec` mem_alloc `gc/sec`
 ##   &lt;bch:expr&gt;            &lt;bch:tm&gt; &lt;bch:tm&gt;     &lt;dbl&gt; &lt;bch:byt&gt;    &lt;dbl&gt;
-## 1 gsd_simulations()       1.84ms   2.06ms      464.    29.9KB    10.9 
-## 2 gsd_simulations_old() 950.82µs   1.12ms      859.   932.5KB     6.15</code></pre>
+## 1 gsd_simulations()       2.01ms    2.3ms      416.    29.9KB    10.7 
+## 2 gsd_simulations_old() 996.96µs   1.22ms      792.   932.5KB     4.08</code></pre>
 <p>The “old” implementation is approximately twice as fast and requires
 0.6 times the memory allocation.</p>
 <p>Maybe because of the larger <code>pmvnorm</code> calls?</p>
@@ -2398,8 +2398,8 @@ bench::mark(
 <pre><code>## # A tibble: 2 × 6
 ##   expression                             min median `itr/sec` mem_alloc `gc/sec`
 ##   &lt;bch:expr&gt;                         &lt;bch:t&gt; &lt;bch:&gt;     &lt;dbl&gt; &lt;bch:byt&gt;    &lt;dbl&gt;
-## 1 pnorm(0)                           485.9ns  564ns  1616333.        0B      0  
-## 2 pmvnorm(lower = lower_bounds, upp…  38.8µs   49µs    18079.    2.49KB     17.0</code></pre>
+## 1 pnorm(0)                           484.1ns  611ns  1492492.        0B      0  
+## 2 pmvnorm(lower = lower_bounds, upp…  39.7µs   53µs    16801.    2.49KB     14.8</code></pre>
 <pre class="r"><code>39.9e-6 / 551.9e-9</code></pre>
 <pre><code>## [1] 72.29571</code></pre>
 <p>R’s <code>pnorm</code> function is approximately 72 times faster than
@@ -2428,8 +2428,8 @@ bench::mark(
 <pre><code>## # A tibble: 2 × 6
 ##   expression                             min median `itr/sec` mem_alloc `gc/sec`
 ##   &lt;bch:expr&gt;                          &lt;bch:&gt; &lt;bch:&gt;     &lt;dbl&gt; &lt;bch:byt&gt;    &lt;dbl&gt;
-## 1 pmvnorm(lower = lower_bounds2, upp… 38.5µs 49.9µs    18132.    2.49KB     16.9
-## 2 pmvnorm(lower = lower_bounds, uppe… 39.2µs 49.9µs    18289.    2.49KB     14.8</code></pre>
+## 1 pmvnorm(lower = lower_bounds2, upp… 39.2µs 49.7µs    17806.    2.49KB     14.8
+## 2 pmvnorm(lower = lower_bounds, uppe… 38.6µs 48.1µs    18815.    2.49KB     17.0</code></pre>
 <p>Two and three dimensional integrals appear to be approximately the
 same speed.</p>
 </div>
@@ -2490,7 +2490,7 @@ expected sample size calculator, an absolute tolerance value <span class="math i
 }</code></pre>
 <pre class="r"><code>max_ess()</code></pre>
 <pre><code>##     delta1     delta2       ess1       ess2 
-##  0.3444824  0.3445435 43.8347199 43.8345516</code></pre>
+##  0.3442993  0.3443604 43.8341201 43.8343674</code></pre>
 </div>
 <div id="triagular-designs" class="section level2">
 <h2>Triagular designs</h2>
@@ -2672,16 +2672,16 @@ gsd_simulations_old(n_analyses = 3,
 ## 
 ## $analysis_3
 ## futility_null efficacy_null  futility_alt  efficacy_alt 
-##    0.39782591    0.04283610    0.05555984    0.13484265 
+##    0.39782063    0.04283756    0.05556442    0.13484360 
 ## 
 ## $expected_sample_size
-## [1] 35.56947
+## [1] 35.5698
 ## 
 ## $alpha
-## [1] 0.1310345
+## [1] 0.131036
 ## 
 ## $power
-## [1] 0.9307101</code></pre>
+## [1] 0.930711</code></pre>
 <pre class="r"><code>ggplot() +
   geom_line(mapping = aes(x = c(1,2,3), y = upper)) +
   geom_line(mapping = aes(x = c(1,2,3), y = lower))</code></pre>
