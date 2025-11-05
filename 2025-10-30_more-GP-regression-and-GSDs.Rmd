@@ -1025,11 +1025,11 @@ triangular_bounds <- function(n_analyses = 3,
                               sigma_1 = 1) {
   
   # I think this needs to be alpha rather that alpha/2 as this is one-sided
-  delta_tild <- (2 * qnorm( 1-alpha ) * delta) / (qnorm( 1-alpha ) + qnorm( 1-beta ))
+  delta_tild <- (2 * qnorm( 1-alpha ) * delta ) / (qnorm( 1-alpha ) + qnorm( 1-beta ))
   
   log_1over2alpha <- log(1/(2*alpha))
   
-  I_L_term1 <- (4 * 0.583^2) / n_analyses
+  I_L_term1 <- (4 * (0.583^2)) / n_analyses
   I_L_term2 <- 8 * log_1over2alpha
   I_L_term3 <- (2 * 0.583) / sqrt(n_analyses)
   
@@ -1046,7 +1046,7 @@ triangular_bounds <- function(n_analyses = 3,
     information_term1 <- sigma_0 / (i * n)
     information_term2 <- sigma_1 / (allocation_ratio * i * n)
     
-    information <- 1 / (information_term1 + information_term2)
+    information <- (information_term1 + information_term2)^(-1)
     
     sqrt_inv_info_l <- 1 / sqrt(information)
     
@@ -1069,14 +1069,14 @@ Confirm that these calculated boundaries are correct using the `gsd_simulation_o
 ```{r}
 delta <- 0.5
 
-bounds <- triangular_bounds(delta = delta, beta = 0.1, alpha = 0.05)
+bounds <- triangular_bounds(delta = delta, beta = 0.1, alpha = 0.1)
 
 upper <- bounds$e
 lower <- bounds$f 
 
 gsd_simulations_old(n_analyses = 3,
-                    upper_bounds = upper,
-                    lower_bounds = lower,
+                    upper_bounds = c(upper),
+                    lower_bounds = c(lower[1:2], upper[3]),
                     n_patients = c(20, 40, 60),
                     null_hypothesis = 0,
                     alt_hypothesis = delta,
