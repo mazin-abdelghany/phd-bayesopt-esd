@@ -1023,8 +1023,9 @@ triangular_bounds <- function(n_analyses = 3,
                               n = 20,
                               sigma_0 = 1,
                               sigma_1 = 1) {
-
-  delta_tild <- (2 * qnorm( 1-(alpha/2) ) * delta) / (qnorm( 1-(alpha/2) ) + qnorm( 1-beta ))
+  
+  # I think this needs to be alpha rather that alpha/2 as this is one-sided
+  delta_tild <- (2 * qnorm( 1-alpha ) * delta) / (qnorm( 1-alpha ) + qnorm( 1-beta ))
   
   log_1over2alpha <- log(1/(2*alpha))
   
@@ -1068,7 +1069,7 @@ Confirm that these calculated boundaries are correct using the `gsd_simulation_o
 ```{r}
 delta <- 0.5
 
-bounds <- triangular_bounds(delta = delta, beta = 0.4)
+bounds <- triangular_bounds(delta = delta, beta = 0.1, alpha = 0.05)
 
 upper <- bounds$e
 lower <- bounds$f 
