@@ -1071,6 +1071,34 @@ Confirm that these calculated boundaries are correct using the `gsd_simulation_o
 ```{r}
 delta <- 0.5
 
+bounds <- triangular_bounds(delta = delta, beta = 0.1, alpha = 0.05, n_analyses = 3)
+
+upper <- bounds$e
+lower <- bounds$f 
+info <- bounds$info
+
+gsd_simulations_old(n_analyses = 3,
+                    upper_bounds = upper,
+                    lower_bounds = lower,
+                    n_patients = c(20 * 1:3),
+                    null_hypothesis = 0,
+                    alt_hypothesis = delta,
+                    variance = 1)
+```
+
+
+
+```{r}
+ggplot() +
+  geom_line(mapping = aes(x = info, y = upper)) +
+  geom_line(mapping = aes(x = info, y = lower))
+```
+
+Try 10 analyses.
+
+```{r}
+delta <- 0.5
+
 bounds <- triangular_bounds(delta = delta, beta = 0.1, alpha = 0.05, n_analyses = 10)
 
 upper <- bounds$e
@@ -1086,7 +1114,7 @@ gsd_simulations_old(n_analyses = 10,
                     variance = 1)
 ```
 
-
+And plot the boundaries.
 
 ```{r}
 ggplot() +
