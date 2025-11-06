@@ -35,5 +35,669 @@ set.seed(20251029)
 
 # GP regression
 
+```{r}
+# load required libraries
+library(gplite)
+library(plotly)
+```
+
 ## Change the number of restarts on `gp_optim`
 
+Generate data for the function to which the model will be fit.
+
+```{r}
+n <- 5
+x  <- matrix(seq(-2, 2, length.out = n), ncol = 1)
+y  <- x^2
+```
+
+Plot the data.
+
+```{r}
+ggplot() + 
+  geom_point(aes(x=x, y=y), size=2) +
+  xlab('x') + ylab('y') 
+```
+
+
+Initialize the GP model.
+
+```{r}
+# Specify the GP model we want to use:
+gp_empty <- gp_init(
+  
+  # A squared exponential (aka Gaussian aka RBF) kernel
+  cfs = cf_sexp(
+    vars = NULL,
+    lscale = 0.3,
+    magn = 1,
+    prior_lscale = prior_logunif(),
+    prior_magn = prior_logunif(),
+    normalize = FALSE
+  ),  
+  
+  # Assume Gaussian distributed errors
+  lik = lik_gaussian(
+    sigma = 0.5, 
+    prior_sigma = prior_logunif()
+  ), 
+  
+  # Use the full covariance (i.e., do not approximate)
+  method = method_full() 
+  
+)
+```
+
+Optimize the model using the internal function.
+
+```{r}
+# Now fit the model to the data:
+gp_optimized <- gp_optim(gp_empty, x, y, verbose = FALSE)
+```
+
+Plot the model.
+
+```{r}
+# compute the predictive mean and variance in a grid of points
+xt   <- seq(-4, 4, len=150)
+pred <- gp_pred(gp_optimized, xt, var = T)
+
+# visualize
+mu <- pred$mean
+lb <- pred$mean - 2*sqrt(pred$var)
+ub <- pred$mean + 2*sqrt(pred$var)
+
+ggplot() + 
+  geom_ribbon(aes(x=xt, ymin=lb, ymax=ub), fill='lightgray') +
+  geom_line(aes(x=xt, y=mu), linewidth = 0.5) +
+  geom_point(aes(x=x, y=y), size=2) +
+  xlab('x') + ylab('y')
+```
+
+Pull the energy.
+
+```{r}
+gp_energy(gp_optimized)
+```
+
+Increase the number of restarts.
+
+```{r}
+# Now fit the model to the data:
+gp_optimized_10 <- gp_optim(
+  
+  gp = gp_empty, 
+  x = x, 
+  y = y, 
+  restarts = 10,
+  verbose = FALSE
+  
+)
+```
+
+Plot the model with larger number of restarts.
+
+```{r}
+# compute the predictive mean and variance in a grid of points
+pred <- gp_pred(gp_optimized_10, xt, var = T)
+
+# visualize
+mu <- pred$mean
+lb <- pred$mean - 2*sqrt(pred$var)
+ub <- pred$mean + 2*sqrt(pred$var)
+
+ggplot() + 
+  geom_ribbon(aes(x=xt, ymin=lb, ymax=ub), fill='lightgray') +
+  geom_line(aes(x=xt, y=mu), linewidth = 0.5) +
+  geom_point(aes(x=x, y=y), size=2) +
+  xlab('x') + ylab('y')
+```
+
+Pull the energy.
+
+```{r}
+gp_energy(gp_optimized_10)
+```
+
+Increase to 1000 restarts.
+
+```{r}
+# Now fit the model to the data:
+gp_optimized_1000 <- gp_optim(
+  
+  gp = gp_empty, 
+  x = x, 
+  y = y, 
+  restarts = 1000,
+  verbose = FALSE
+  
+)
+```
+
+Plot the model with larger number of restarts.
+
+```{r}
+# compute the predictive mean and variance in a grid of points
+pred <- gp_pred(gp_optimized_1000, xt, var = T)
+
+# visualize
+mu <- pred$mean
+lb <- pred$mean - 2*sqrt(pred$var)
+ub <- pred$mean + 2*sqrt(pred$var)
+
+ggplot() + 
+  geom_ribbon(aes(x=xt, ymin=lb, ymax=ub), fill='lightgray') +
+  geom_line(aes(x=xt, y=mu), linewidth = 0.5) +
+  geom_point(aes(x=x, y=y), size=2) +
+  xlab('x') + ylab('y')
+```
+
+Pull the energy.
+
+```{r}
+gp_energy(gp_optimized_1000)
+```
+
+Increase to 1,000,000 restarts.
+
+```{r}
+# Now fit the model to the data:
+gp_optimized_1e6 <- gp_optim(
+  
+  gp = gp_empty, 
+  x = x, 
+  y = y, 
+  restarts = 1e6,
+  verbose = FALSE
+  
+)
+```
+
+Plot the model with larger number of restarts.
+
+```{r}
+# compute the predictive mean and variance in a grid of points
+pred <- gp_pred(gp_optimized_1e6, xt, var = T)
+
+# visualize
+mu <- pred$mean
+lb <- pred$mean - 2*sqrt(pred$var)
+ub <- pred$mean + 2*sqrt(pred$var)
+
+ggplot() + 
+  geom_ribbon(aes(x=xt, ymin=lb, ymax=ub), fill='lightgray') +
+  geom_line(aes(x=xt, y=mu), linewidth = 0.5) +
+  geom_point(aes(x=x, y=y), size=2) +
+  xlab('x') + ylab('y')
+```
+
+Pull the energy.
+
+```{r}
+gp_energy(gp_optimized_1e6)
+```
+
+## Plot the marginal likelihood surface with more points
+
+### Recapitulate the original surface plot.
+
+```{r}
+ell <- seq(0.5, 3, by = 0.05)
+  
+sigma_f <- seq(2, 8, by = 0.05)
+
+hyperparams <- expand.grid(
+  ell = ell,
+  sigma_f = sigma_f
+)
+
+# collect energies in the empty vector
+energy <- c()
+
+# run 6000+ models
+for (i in 1:dim(hyperparams)[1]) {
+  
+  gp_empty <- gp_init(
+    # A squared exponential (aka Gaussian aka RBF) kernel
+    cfs = cf_sexp(
+      vars = NULL,
+      lscale = hyperparams$ell[i],
+      magn = hyperparams$sigma_f[i],
+      prior_lscale = prior_logunif(),
+      prior_magn = prior_logunif(),
+      normalize = FALSE
+    ),  
+    
+    # Assume Gaussian distributed errors
+    lik = lik_gaussian(
+      sigma = 0.01, 
+      prior_sigma = prior_logunif()
+    ), 
+    
+    # Use the full covariance (i.e., do not approximate)
+    method = method_full() 
+  )
+  
+  gp_raw <- gp_fit(gp_empty, x, y)
+  
+  energy[i] <- gp_energy(gp_raw)
+  
+}
+
+surface_plot <- cbind(hyperparams, energy)
+
+surface_plot[which.min(surface_plot$energy),]
+```
+
+Model with $\ell = 2$ and $\sigma_f^2 = 6$, near the optimal values. Recall that we are setting $\sigma_n^2 = 0.01$.
+
+```{r}
+# Specify the GP model we want to use,
+# we will specify the lscale and magn using values from above
+gp_empty <- gp_init(
+  # A squared exponential (aka Gaussian aka RBF) kernel
+  cfs = cf_sexp(
+    vars = NULL,
+    lscale = 2,
+    magn = 6,
+    prior_lscale = prior_logunif(),
+    prior_magn = prior_logunif(),
+    normalize = FALSE
+  ),  
+  
+  # Assume Gaussian distributed errors
+  lik = lik_gaussian(
+    sigma = 0.01, 
+    prior_sigma = prior_logunif()
+  ), 
+  
+  # Use the full covariance (i.e., do not approximate)
+  method = method_full() 
+)
+
+gp_raw_ell2sigma6 <- gp_fit(gp_empty, x, y)
+```
+
+Plot the model.
+
+```{r}
+# compute the predictive mean and variance in a grid of points
+pred_ell2sigma6 <- gp_pred(gp_raw_ell2sigma6, xt, var = T)
+
+# visualize
+mu_ell2sigma6 <- pred_ell2sigma6$mean
+lb_ell2sigma6 <- pred_ell2sigma6$mean - 2*sqrt(pred_ell2sigma6$var)
+ub_ell2sigma6 <- pred_ell2sigma6$mean + 2*sqrt(pred_ell2sigma6$var)
+
+ggplot() + 
+  geom_ribbon(aes(x=xt, ymin=lb_ell2sigma6, ymax=ub_ell2sigma6), fill='lightgray') +
+  geom_line(aes(x=xt, y=mu_ell2sigma6), linewidth = 0.5) +
+  geom_point(aes(x=x, y=y), size=2) +
+  xlab('x') + ylab('y')
+```
+
+Plot the entire surface.
+
+```{r}
+fig <- plot_ly() %>% 
+  
+  add_trace(
+    x = unique(surface_plot$sigma_f), 
+    y = unique(surface_plot$ell), 
+    z = matrix(surface_plot$energy, nrow = 51, ncol = 121),
+    type = "surface") %>% 
+  
+  add_trace(
+    x = 6.1,
+    y = 1.95,
+    z = 11.05812,
+    type = "scatter3d",
+    mode = "markers"
+  ) %>%
+  
+  layout(
+    scene = list(
+      aspectmode = 'manual',  # Set to manual for custom aspect ratio
+      aspectratio = list(x = 1, y = 1, z = 0.5),  # Adjust x, y, z ratios
+      
+      xaxis = list(
+        title = "signal variance"
+      ),
+      
+      yaxis = list(
+        title = "length-scale parameter"
+      ),
+      
+      zaxis = list(
+        title = "-log(marginal likelihood)"
+      )
+    )
+  )
+  
+fig
+```
+
+Plot the surface nearest the optimum value.
+
+```{r}
+fig <- plot_ly() %>% 
+  
+  add_trace(
+    x = unique(surface_plot$sigma_f)[80:121], 
+    y = unique(surface_plot$ell)[10:51], 
+    z = matrix(surface_plot$energy, nrow = 51, ncol = 121)[10:51, 80:121],
+    type = "surface") %>% 
+  
+  add_trace(
+    x = 6.1,
+    y = 1.95,
+    z = 11.05812,
+    type = "scatter3d",
+    mode = "markers"
+  ) %>%
+  
+  layout(
+    scene = list(
+      aspectmode = 'manual',  # Set to manual for custom aspect ratio
+      aspectratio = list(x = 1, y = 1, z = 0.5),  # Adjust x, y, z ratios
+      
+      xaxis = list(
+        title = "signal variance"
+      ),
+      
+      yaxis = list(
+        title = "length-scale parameter"
+      ),
+      
+      zaxis = list(
+        title = "-log(marginal likelihood)"
+      )
+    )
+  )
+  
+fig
+```
+
+### More points!
+
+Next, increase the number of points that we are fitting, but within the originally specified range of the function $x \in (-2, 2)$. Below, I have added 3 new points. 
+
+```{r}
+# n is 7 now; used to be 5
+n_new <- 7
+x_new  <- matrix(seq(-2, 2, length.out = n_new), ncol = 1)
+y_new  <- x_new^2
+```
+
+Plot the data.
+
+```{r}
+ggplot() + 
+  geom_point(aes(x = x_new, y = y_new), size=2) +
+  xlab('x') + ylab('y') 
+```
+
+Now, fit the model using `gp_optim`.
+
+```{r}
+gp_empty_7 <- gp_init(
+  
+  # A squared exponential (aka Gaussian aka RBF) kernel
+  cfs = cf_sexp(
+    vars = NULL,
+    lscale = 0.3,
+    magn = 1,
+    prior_lscale = prior_logunif(),
+    prior_magn = prior_logunif(),
+    normalize = FALSE
+  ),  
+  
+  # Assume Gaussian distributed errors
+  lik = lik_gaussian(
+    sigma = 0.5, 
+    prior_sigma = prior_logunif()
+  ), 
+  
+  # Use the full covariance (i.e., do not approximate)
+  method = method_full() 
+  
+)
+```
+
+Optimize.
+
+```{r}
+gp_optimized_7 <- gp_optim(gp = gp_empty_7,
+                           x = x_new,
+                           y = y_new,
+                           restarts = 5,
+                           verbose = TRUE)
+```
+
+Optimal value of $\sigma_f^2 = 7.24$ and optimal value of $\ell=3.8$.
+
+Pull the energy.
+
+```{r}
+gp_energy(gp_optimized_7)
+```
+
+
+Plot the optimal model.
+
+```{r}
+xt_more <- seq(-10, 10, len=150)
+pred_7 <- gp_pred(gp = gp_optimized_7,
+                  xnew = xt_more,
+                  var = TRUE)
+
+mu_pred_7 <- pred_7$mean
+lb_pred_7 <- pred_7$mean - 2*sqrt(pred_7$var)
+ub_pred_7 <- pred_7$mean + 2*sqrt(pred_7$var)
+
+ggplot() + 
+  geom_ribbon(aes(x=xt_more, ymin=lb_pred_7, ymax=ub_pred_7), fill='lightgray') +
+  geom_line(aes(x=xt_more, y=mu_pred_7), linewidth = 0.5) +
+  geom_point(aes(x=x_new, y=y_new), size=2) +
+  xlab('x') + ylab('y')
+
+```
+
+### Generate the surface
+
+Recall, optimal value of $\sigma_f^2 = 7.24$ and optimal value of $\ell=3.8$. We will set $\sigma_n^2 = 0.01$.
+
+```{r}
+# using prior optimization, set sequence
+ell <- seq(1, 6, by = 0.05)
+
+# using prior optimization, set sequence
+sigma_f <- seq(4, 10, by = 0.05)
+
+hyperparams <- expand.grid(
+  ell = ell,
+  sigma_f = sigma_f
+)
+
+# collect energies in the empty vector
+energy <- vector(mode = "numeric", length = dim(hyperparams)[1])
+
+# run 6000+ models
+for (i in 1:dim(hyperparams)[1]) {
+  
+  gp_empty <- gp_init(
+    # A squared exponential (aka Gaussian aka RBF) kernel
+    cfs = cf_sexp(
+      vars = NULL,
+      lscale = hyperparams$ell[i],
+      magn = hyperparams$sigma_f[i],
+      prior_lscale = prior_logunif(),
+      prior_magn = prior_logunif(),
+      normalize = FALSE
+    ),  
+    
+    # Assume Gaussian distributed errors
+    lik = lik_gaussian(
+      sigma = 0.01, 
+      prior_sigma = prior_logunif()
+    ), 
+    
+    # Use the full covariance (i.e., do not approximate)
+    method = method_full() 
+  )
+  
+  gp_raw <- gp_fit(gp_empty, x_new, y_new)
+  
+  energy[i] <- gp_energy(gp_raw)
+  
+}
+
+surface_plot <- cbind(hyperparams, energy)
+
+surface_plot[which.min(surface_plot$energy),]
+```
+
+Is the range of energies lower value?
+
+```{r}
+range(surface_plot$energy)
+```
+
+Plot the surface.
+
+```{r}
+fig <- plot_ly() %>% 
+  
+  add_trace(
+    x = unique(surface_plot$sigma_f), 
+    y = unique(surface_plot$ell), 
+    z = matrix(surface_plot$energy, nrow = 101, ncol = 121),
+    type = "surface") %>% 
+  
+  add_trace(
+    x = 10,
+    y = 2.9,
+    z = 5.433,
+    type = "scatter3d",
+    mode = "markers"
+  ) %>%
+  
+  layout(
+    scene = list(
+      aspectmode = 'manual',  # Set to manual for custom aspect ratio
+      aspectratio = list(x = 1, y = 1, z = 0.5),  # Adjust x, y, z ratios
+      
+      xaxis = list(
+        title = "signal variance"
+      ),
+      
+      yaxis = list(
+        title = "length-scale parameter"
+      ),
+      
+      zaxis = list(
+        title = "-log(marginal likelihood)"
+      )
+    )
+  )
+  
+fig
+```
+
+
+Plot the surface with lowest energies.
+
+```{r}
+fig <- plot_ly() %>% 
+  
+  add_trace(
+    x = unique(surface_plot$sigma_f), 
+    y = unique(surface_plot$ell)[1:45], 
+    z = matrix(surface_plot$energy, nrow = 101, ncol = 121)[1:45, ],
+    type = "surface") %>% 
+  
+  add_trace(
+    x = 10,
+    y = 2.9,
+    z = 5.433,
+    type = "scatter3d",
+    mode = "markers"
+  ) %>%
+  
+  layout(
+    scene = list(
+      aspectmode = 'manual',  # Set to manual for custom aspect ratio
+      aspectratio = list(x = 1, y = 1, z = 0.5),  # Adjust x, y, z ratios
+      
+      xaxis = list(
+        title = "signal variance"
+      ),
+      
+      yaxis = list(
+        title = "length-scale parameter"
+      ),
+      
+      zaxis = list(
+        title = "-log(marginal likelihood)"
+      )
+    )
+  )
+  
+fig
+```
+
+## Broken optimization
+
+$n=7$ works, but $n=8$ or $n=9$ does not.
+
+```{r}
+# n is 8 now
+n_new <- 8
+x_new  <- matrix(seq(-2, 2, length.out = n_new), ncol = 1)
+y_new  <- x_new^2
+```
+
+Plot the data.
+
+```{r}
+ggplot() + 
+  geom_point(aes(x = x_new, y = y_new), size=2) +
+  xlab('x') + ylab('y') 
+```
+
+Now, fit the model using `gp_optim`.
+
+```{r}
+gp_empty_8 <- gp_init(
+  
+  # A squared exponential (aka Gaussian aka RBF) kernel
+  cfs = cf_sexp(
+    vars = NULL,
+    lscale = 0.3,
+    magn = 1,
+    prior_lscale = prior_logunif(),
+    prior_magn = prior_logunif(),
+    normalize = FALSE
+  ),  
+  
+  # Assume Gaussian distributed errors
+  lik = lik_gaussian(
+    sigma = 0.5, 
+    prior_sigma = prior_logunif()
+  ), 
+  
+  # Use the full covariance (i.e., do not approximate)
+  method = method_full() 
+  
+)
+```
+
+Optimize.
+
+```{r, error=TRUE}
+gp_optimized_8 <- gp_optim(gp = gp_empty_8,
+                           x = x_new,
+                           y = y_new,
+                           restarts = 5,
+                           verbose = FALSE)
+```
