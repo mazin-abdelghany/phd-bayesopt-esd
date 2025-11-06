@@ -1122,6 +1122,7 @@ ggplot() +
   geom_line(mapping = aes(x = info, y = lower))
 ```
 
+Using the original paper, I tried to calculate the boundaries myself. This does not work because there are some information calculations that are missing from the below, as far as I can tell.
 
 ```{r}
 n_analyses <- 3
