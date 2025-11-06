@@ -33,6 +33,8 @@ library(data.table)
 set.seed(20251029)
 ```
 
+# GSD simulations
+
 # GP regression
 
 ```{r}
