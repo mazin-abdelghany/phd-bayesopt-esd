@@ -1037,6 +1037,7 @@ triangular_bounds <- function(n_analyses = 3,
   
   e <- vector(mode = "numeric", length = n_analyses)
   f <- vector(mode = "numeric", length = n_analyses)
+  info_vec <- vector(mode = "numeric", length = n_analyses)
   
   bounds_term1 <- (2/delta_tild) * log_1over2alpha
   bounds_term2 <- 0.583 * sqrt(I_L / n_analyses)
@@ -1054,12 +1055,13 @@ triangular_bounds <- function(n_analyses = 3,
   
     f_l <- ( (-1*bounds_term1) + bounds_term2 + ( (0.75*delta_tild) * (i/n_analyses) * I_L ) ) * sqrt_inv_info_l
   
+    info_vec[i] <- information
     e[i] <- e_l
     f[i] <- f_l
     
   }
   
-  return(list(e = e, f = f))
+  return(list(e = e, f = f, info = info_vec))
 }
 ```
 
@@ -1069,15 +1071,16 @@ Confirm that these calculated boundaries are correct using the `gsd_simulation_o
 ```{r}
 delta <- 0.5
 
-bounds <- triangular_bounds(delta = delta, beta = 0.1, alpha = 0.1)
+bounds <- triangular_bounds(delta = delta, beta = 0.1, alpha = 0.05, n_analyses = 10)
 
 upper <- bounds$e
 lower <- bounds$f 
+info <- bounds$info
 
-gsd_simulations_old(n_analyses = 3,
-                    upper_bounds = c(upper),
-                    lower_bounds = c(lower[1:2], upper[3]),
-                    n_patients = c(20, 40, 60),
+gsd_simulations_old(n_analyses = 10,
+                    upper_bounds = upper,
+                    lower_bounds = lower,
+                    n_patients = c(20 * 1:10),
                     null_hypothesis = 0,
                     alt_hypothesis = delta,
                     variance = 1)
@@ -1087,13 +1090,57 @@ gsd_simulations_old(n_analyses = 3,
 
 ```{r}
 ggplot() +
-  geom_line(mapping = aes(x = c(1,2,3), y = upper)) +
-  geom_line(mapping = aes(x = c(1,2,3), y = lower))
+  geom_line(mapping = aes(x = info, y = upper)) +
+  geom_line(mapping = aes(x = info, y = lower))
 ```
 
 
+```{r}
+n_analyses <- 3
+
+alpha <- 0.05
+beta <- 0.1
+
+n <- 20
+
+delta <- 0.5
+
+sigma_0 <- 1
+sigma_1 <- 1
+allocation_ratio <- 1
+
+V_vec <- vector(mode = "numeric", length = n_analyses)
+
+for (i in 1:n_analyses) {
+  I_term1 <- sigma_0 / (i * n)
+  I_term2 <- sigma_1 / (allocation_ratio * i * n)
+  
+  I <- (I_term1 + I_term2)^(-1)
+
+  V_vec[i] <- I
+}
+
+theta_a <- (2 * qnorm( 1-alpha ) * delta ) / (qnorm( 1-alpha ) + qnorm( 1-beta ))
+
+a_prime <- (2/theta_a) * log(1/(2*alpha))
+a <- a_prime - 0.583 * sqrt(I)
+
+lambda <- (1/4) * theta_a
+
+z_upper <- a + (lambda * V_vec)
+z_lower <- -a +  (3 * lambda * V_vec)
+```
 
 
+```{r}
+gsd_simulations_old(n_analyses = 3,
+                    upper_bounds = z_upper,
+                    lower_bounds = z_lower,
+                    n_patients = c(20, 40, 60),
+                    null_hypothesis = 0,
+                    alt_hypothesis = delta,
+                    variance = 1)
+```
 
 
 
