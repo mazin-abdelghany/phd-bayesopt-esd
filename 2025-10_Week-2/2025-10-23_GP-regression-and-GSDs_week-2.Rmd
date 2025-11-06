@@ -892,7 +892,7 @@ We can repeat the above process of fitting the raw model with different hyperpar
 
 * the length-scale $\ell$
 * the signal variance $\sigma_{f}^2$, where $f$ is the objective function
-* the noise variance $sigma_{n}^2$, where $n$ is additive Gaussian noise
+* the noise variance $\sigma_{n}^2$, where $n$ is additive Gaussian noise
 
 These parameters can be varied independently and collected in vectors such as $(\ell, \sigma_{f}^2, \sigma_{n}^2) = (1,1,0.1)$. In order to graph the surface of the negative log marginal likelihood, we can fix one of these parameters. In this example, we can assume there is no noise and fix the noise parameter $\sigma_{n}^2$ at 0.01. 
 
@@ -1148,7 +1148,7 @@ Now that we have explored these surfaces, we can review how the selections of ea
 
 ## Modifying length-scale
 
-Model with $\ell = 2$ and $\sigma_f^2 = 6$, near the optimal values. Recall that we are setting $sigma_n^2 = 0.01$.
+Model with $\ell = 2$ and $\sigma_f^2 = 6$, near the optimal values. Recall that we are setting $\sigma_n^2 = 0.01$.
 
 ```{r}
 # Specify the GP model we want to use,
