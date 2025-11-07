@@ -43,7 +43,7 @@ library(gplite)
 library(plotly)
 ```
 
-## Change the number of restarts on `gp_optim`
+## Change restarts in `gp_optim`
 
 Generate data for the function to which the model will be fit.
 
@@ -239,9 +239,9 @@ Pull the energy.
 gp_energy(gp_optimized_1e6)
 ```
 
-## Plot the marginal likelihood surface with more points
+## Marginal likelihood surface; more points
 
-### Recapitulate the original surface plot.
+### Original surface plot.
 
 ```{r}
 ell <- seq(0.5, 3, by = 0.05)
