@@ -57,7 +57,11 @@ gsd_simulations <- function(n_analyses = 3,
   }
   
   if(length(n_patients) != length(upper_bounds)) {
-    stop("Warning: number of patients vector must equal number of analyses")
+    stop("Warning: number of patients vector must equal number of bounds")
+  }
+  
+  if(n_analyses != length(upper_bounds)) {
+    stop("Warning: number of analyses must equal number of bounds")
   }
   
   # assign values for null and alt hypotheses
@@ -279,10 +283,18 @@ triangular_bounds <- function(n_analyses = 3,
 Quick assessment of the characteristics of the calculated boundaries.
 
 ```{r}
-bounds <- triangular_bounds(alpha = 0.025)
+delta <- 0.5
 
-gsd_simulations(upper_bounds = bounds$upper,
-                lower_bounds = bounds$lower)
+bounds <- triangular_bounds(n_analyses = 3,
+                            alpha = 0.05,
+                            delta = delta)
+
+gsd_simulations(n_analyses = 3,
+                upper_bounds = bounds$upper,
+                lower_bounds = bounds$lower,
+                alt_hypothesis = delta,
+                n_patients = c(20,40,60),
+                variance = 1)
 ```
 
 Dr. Robertson's code for triangular bounds.
@@ -318,7 +330,84 @@ ggplot() +
 
 ## Other boundaries
 
+According to the paper, the symmetric boundaries are calculated using the following formula:
 
+$$
+r_l = C_{WT}\left(\frac{l}{L}\right)^{\Omega−0.5}
+$$
+Pocock (1977) and O'Brien and Fleming (1979) boundaries take $\Omega = 0.5$ or $\Omega = 0$, respectively. Further, a numerical search is used for any chosen $\Omega$ to determine the value of $C_{WT}$ that implies the correct type I error rate $\alpha$. A further search is then used to ascertain the required sample size for the power constraint.
+
+### Pocock
+
+Boundaries given by:
+
+$$
+r_l = C_{WT}\left(\frac{l}{L}\right)^{0.5−0.5} = C_{WT}
+$$
+
+Using our `gsd_simulations` function, we can perform this numerical search.
+
+To perform the search as coded below, we need a function that rounds down to the nearest power of ten.
+
+```{r}
+round_down10 <- function(x) 10^floor(log10(x))
+```
+
+
+```{r}
+n_analyses <- 3
+alpha <- 0.05
+beta <- 0.1
+
+# epsilon must be multiple of ten
+epsilon <- 0.00001
+
+# hyperparameter tuned to get close to alpha needed
+z_mod <- -0.001
+
+initial_boundaries <- rep_len(qnorm(alpha/n_analyses), length.out = n_analyses)
+
+pk_upper_bounds <- -initial_boundaries
+pk_lower_bounds <- initial_boundaries
+
+sim_vals <- gsd_simulations(n_analyses = n_analyses, 
+                            upper_bounds = pk_upper_bounds,
+                            lower_bounds = pk_lower_bounds,
+                            n_patients = c(20,40,60))
+
+while( round_down10(abs(sim_vals$alpha - alpha)) != epsilon){
+  #for(i in 1:10){
+  
+  if ( round_down10(abs(sim_vals$alpha - alpha)) > epsilon) {
+    initial_boundaries <- initial_boundaries - z_mod
+    
+    pk_upper_bounds <- -initial_boundaries
+    pk_lower_bounds <- initial_boundaries
+    
+  } else if ( round_down10(abs(sim_vals$alpha - alpha)) < epsilon) {
+    initial_boundaries <- initial_boundaries + z_mod
+    
+    pk_upper_bounds <- -initial_boundaries
+    pk_lower_bounds <- initial_boundaries
+    
+  }
+  
+  sim_vals <- gsd_simulations(n_analyses = n_analyses, 
+                            upper_bounds = pk_upper_bounds,
+                            lower_bounds = pk_lower_bounds,
+                            n_patients = c(20,40,60))
+  
+}
+
+print(list(pk_upper_bounds, pk_lower_bounds, sim_vals$alpha))
+```
+
+
+### O'Brien-Fleming
+
+$$
+r_l = C_{WT}\left(\frac{l}{L}\right)^{0−0.5} = C_{WT}\left(\frac{l}{L}\right)^{−0.5}
+$$
 
 # GP regression
 
