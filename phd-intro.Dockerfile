@@ -10,7 +10,8 @@ RUN install2.r --error \
      gplite \
      mvtnorm \
      plotly \
-     bench
+     bench \
+     rpact
 
 ## install RStan
 # RUN Rscript -e 'Sys.setenv(DOWNLOAD_STATIC_LIBV8 = 1)'
