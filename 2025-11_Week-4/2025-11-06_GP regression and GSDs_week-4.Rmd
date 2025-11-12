@@ -275,7 +275,7 @@ triangular_bounds <- function(n_analyses = 3,
 
   f_l <- (-bounds_term1 + bounds_term2 + ((0.75*delta) * analysis_fracs * I_L )) / sqrt(I_L_fracs)
   
-  return(list(upper = e_l, lower = f_l, info = I_L_fracs))
+  return(list(upper_bounds = e_l, lower_bounds = f_l, info = I_L_fracs))
   
 }
 ```
@@ -290,8 +290,8 @@ bounds <- triangular_bounds(n_analyses = 3,
                             delta = delta)
 
 gsd_simulations(n_analyses = 3,
-                upper_bounds = bounds$upper,
-                lower_bounds = bounds$lower,
+                upper_bounds = bounds$upper_bounds,
+                lower_bounds = bounds$lower_bounds,
                 alt_hypothesis = delta,
                 n_patients = c(20,40,60),
                 variance = 1)
@@ -335,11 +335,12 @@ According to the paper, the symmetric boundaries are calculated using the follow
 $$
 r_l = C_{WT}\left(\frac{l}{L}\right)^{\Omega−0.5}
 $$
+
 Pocock (1977) and O'Brien and Fleming (1979) boundaries take $\Omega = 0.5$ or $\Omega = 0$, respectively. Further, a numerical search is used for any chosen $\Omega$ to determine the value of $C_{WT}$ that implies the correct type I error rate $\alpha$. A further search is then used to ascertain the required sample size for the power constraint.
 
 ### Pocock
 
-Boundaries given by:
+Boundaries given by $\Omega = 0.5$:
 
 $$
 r_l = C_{WT}\left(\frac{l}{L}\right)^{0.5−0.5} = C_{WT}
@@ -347,66 +348,258 @@ $$
 
 Using our `gsd_simulations` function, we can perform this numerical search.
 
-To perform the search as coded below, we need a function that rounds down to the nearest power of ten.
+To perform the search as coded below, we need two functions that rounds down to the nearest power of ten.
 
 ```{r}
+# round down to the nearest floor tenth, e.g., 0.004 -> 0.001
 round_down10 <- function(x) 10^floor(log10(x))
+
+# check that this is a whole number
+is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol
 ```
 
+Now, we can use the below function to calculate the Pocock boundaries.
 
 ```{r}
-n_analyses <- 3
-alpha <- 0.05
-beta <- 0.1
+calculate_pocock <- function(n_analyses = 3,
+                             alpha = 0.05,
+                             beta = 0.1,
+                             epsilon = 0.00001,
+                             n_patients = c(20, 40, 60)) {
 
-# epsilon must be multiple of ten
-epsilon <- 0.00001
+  if(!is.wholenumber(log(epsilon, 10))) {
+    stop("Epsilon must be at log base 10 intervals (e.g., 0.1, 0.01, 0.001.")
+  }
 
-# hyperparameter tuned to get close to alpha needed
-z_mod <- -0.001
-
-initial_boundaries <- rep_len(qnorm(alpha/n_analyses), length.out = n_analyses)
-
-pk_upper_bounds <- -initial_boundaries
-pk_lower_bounds <- initial_boundaries
-
-sim_vals <- gsd_simulations(n_analyses = n_analyses, 
-                            upper_bounds = pk_upper_bounds,
-                            lower_bounds = pk_lower_bounds,
-                            n_patients = c(20,40,60))
-
-while( round_down10(abs(sim_vals$alpha - alpha)) != epsilon){
+  # hyperparameter tuned to get close to alpha needed
+  z_mod <- -epsilon * 100
   
-  if ( round_down10(abs(sim_vals$alpha - alpha)) > epsilon) {
-    initial_boundaries <- initial_boundaries - z_mod
+  initial_boundaries <- rep_len(qnorm(alpha/n_analyses), length.out = n_analyses)
+  
+  pk_upper_bounds <- -initial_boundaries
+  pk_lower_bounds <- initial_boundaries
+  
+  sim_vals <- gsd_simulations(n_analyses = n_analyses, 
+                              upper_bounds = pk_upper_bounds,
+                              lower_bounds = pk_lower_bounds,
+                              n_patients = n_patients)
+  
+  while( round_down10(abs(sim_vals$alpha - alpha)) != epsilon){
     
-    pk_upper_bounds <- -initial_boundaries
-    pk_lower_bounds <- initial_boundaries
+    if ( round_down10(abs(sim_vals$alpha - alpha)) > epsilon) {
+      initial_boundaries <- initial_boundaries - z_mod
+      
+      pk_upper_bounds <- -initial_boundaries
+      pk_lower_bounds <- initial_boundaries
+      
+    } else if ( round_down10(abs(sim_vals$alpha - alpha)) < epsilon) {
+      initial_boundaries <- initial_boundaries + z_mod
+      
+      pk_upper_bounds <- -initial_boundaries
+      pk_lower_bounds <- initial_boundaries
+      
+    }
     
-  } else if ( round_down10(abs(sim_vals$alpha - alpha)) < epsilon) {
-    initial_boundaries <- initial_boundaries + z_mod
-    
-    pk_upper_bounds <- -initial_boundaries
-    pk_lower_bounds <- initial_boundaries
+    sim_vals <- gsd_simulations(n_analyses = n_analyses, 
+                              upper_bounds = pk_upper_bounds,
+                              lower_bounds = pk_lower_bounds,
+                              n_patients = n_patients)
     
   }
   
-  sim_vals <- gsd_simulations(n_analyses = n_analyses, 
-                            upper_bounds = pk_upper_bounds,
-                            lower_bounds = pk_lower_bounds,
-                            n_patients = c(20,40,60))
-  
-}
+  return( list(upper_bounds = pk_upper_bounds, 
+               lower_bounds = pk_lower_bounds, 
+               simulation = sim_vals) )
 
-print(list(pk_upper_bounds, pk_lower_bounds, sim_vals$alpha))
+}
+```
+
+```{r}
+calculate_pocock()
+```
+
+We can compare these boundaries with a published R package: `rpact`.
+
+```{r}
+library(rpact)
+
+getDesignGroupSequential(
+    sided = 1, 
+    alpha = 0.05,
+    informationRates = c(0.33, 0.67, 1), 
+    typeOfDesign = "P"
+)
 ```
 
 
 ### O'Brien-Fleming
 
+Boundaries given by $\Omega = 0$:
+
 $$
 r_l = C_{WT}\left(\frac{l}{L}\right)^{0−0.5} = C_{WT}\left(\frac{l}{L}\right)^{−0.5}
 $$
+
+```{r}
+calculate_of <- function(n_analyses = 3,
+                         alpha = 0.05,
+                         beta = 0.1,
+                         epsilon = 0.00001,
+                         n_patients = c(20, 40, 60)) {
+
+  if(!is.wholenumber(log(epsilon, 10))) {
+    stop("Epsilon must be at log base 10 intervals (e.g., 0.1, 0.01, 0.001.")
+  }
+
+  # hyperparameter tuned to get close to alpha needed
+  z_mod <- -epsilon * 100
+  
+  bounds_start <- rep_len(qnorm(alpha/n_analyses), length.out = n_analyses)
+  
+  initial_boundaries <- bounds_start * (1:n_analyses / n_analyses)^-0.5
+  
+  of_upper_bounds <- -initial_boundaries
+  of_lower_bounds <- initial_boundaries
+  
+  sim_vals <- gsd_simulations(n_analyses = n_analyses, 
+                              upper_bounds = of_upper_bounds,
+                              lower_bounds = of_lower_bounds,
+                              n_patients = n_patients)
+  
+  while( round_down10(abs(sim_vals$alpha - alpha)) != epsilon){
+    
+    if ( round_down10(abs(sim_vals$alpha - alpha)) > epsilon) {
+      
+      bounds_start <- bounds_start - z_mod
+      
+      initial_boundaries <- bounds_start * (1:n_analyses / n_analyses)^-0.5
+      
+      of_upper_bounds <- -initial_boundaries
+      of_lower_bounds <- initial_boundaries
+      
+    } else if ( round_down10(abs(sim_vals$alpha - alpha)) < epsilon) {
+      
+      bounds_start <- bounds_start + z_mod
+      
+      initial_boundaries <- bounds_start * (1:n_analyses / n_analyses)^-0.5
+      
+      of_upper_bounds <- -initial_boundaries
+      of_lower_bounds <- initial_boundaries
+      
+    }
+    
+    sim_vals <- gsd_simulations(n_analyses = n_analyses, 
+                              upper_bounds = of_upper_bounds,
+                              lower_bounds = of_lower_bounds,
+                              n_patients = n_patients)
+    
+  }
+  
+  return( list(upper_bounds = of_upper_bounds, 
+               lower_bounds = of_lower_bounds, 
+               simulation = sim_vals) )
+
+}
+```
+
+```{r}
+calculate_of()
+```
+
+We can compare these boundaries with a published R package: `rpact`.
+
+```{r}
+getDesignGroupSequential(
+    sided = 1, 
+    alpha = 0.05,
+    informationRates = c(0.33, 0.67, 1), 
+    typeOfDesign = "OF"
+)
+```
+
+## Compare sample sizes
+
+Prepare a fuction that will calculate the expected sample size.
+
+```{r}
+simulate_ess <- function(upper_bounds = upper_bounds,
+                         lower_bounds = lower_bounds) {
+  
+  delta_vector <- seq(from = 0, to = 1, length.out = 101)
+  
+  ess_vector <- vector(mode = "numeric", length = length(delta_vector))
+  
+  
+  for (i in 1:length(delta_vector)) {
+    ess_vector[i] <- gsd_simulations(upper_bounds = upper_bounds,
+                                     lower_bounds = lower_bounds,
+                                     alt_hypothesis = delta_vector[i])$expected_sample_size
+  }
+  
+  return(ess_vector)
+}
+```
+
+Calculate the boundaries.
+
+```{r}
+pocock_bounds <- calculate_pocock()
+of_bounds <- calculate_of()
+tri_bounds <- triangular_bounds()
+```
+
+Calculate the expected sample size vectors.
+
+```{r}
+pocock_ess <- simulate_ess(upper_bounds = pocock_bounds$upper_bounds,
+                           lower_bounds = pocock_bounds$lower_bounds)
+
+of_ess <- simulate_ess(upper_bounds = of_bounds$upper_bounds,
+                       lower_bounds = of_bounds$lower_bounds)
+
+tri_ess <- simulate_ess(upper_bounds = tri_bounds$upper_bounds,
+                        lower_bounds = tri_bounds$lower_bounds)
+```
+
+
+```{r}
+delta_vector <- seq(from = 0, to = 1, length.out = 101)
+
+ggplot() + 
+  geom_line(mapping = aes(x = delta_vector, y = pocock_ess, color = "Pocock")) +
+  geom_line(mapping = aes(x = delta_vector, y = of_ess, color = "O'Brien-Fleming")) +
+  geom_line(mapping = aes(x = delta_vector, y = tri_ess, color = "Triangular")) +
+  scale_color_manual(name = "Boundary types",
+                     breaks = c("Pocock", "O'Brien-Fleming", "Triangular"),
+                     values = c("Pocock" = "red", "O'Brien-Fleming" = "blue", "Triangular" = "purple")) +
+  labs(x = "True \u03B4", y = "Expected sample size", 
+       title = "Expected sample size over range of true \u03B4 values")
+```
+
+The maximum expected sample size is:
+
+```{r}
+max(pocock_ess)
+max(of_ess)
+max(tri_ess)
+```
+
+Expected sample size under the null:
+
+```{r}
+pocock_ess[delta_vector==0]
+of_ess[delta_vector==0]
+tri_ess[delta_vector==0]
+```
+
+Assuming the alternative is $\delta = 0.5$, we can calculate the sample size under the alternative as well:
+
+```{r}
+pocock_ess[delta_vector==0.5]
+of_ess[delta_vector==0.5]
+tri_ess[delta_vector==0.5]
+```
+
 
 # GP regression
 
