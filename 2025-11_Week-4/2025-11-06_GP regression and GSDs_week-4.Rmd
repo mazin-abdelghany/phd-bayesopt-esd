@@ -376,7 +376,6 @@ sim_vals <- gsd_simulations(n_analyses = n_analyses,
                             n_patients = c(20,40,60))
 
 while( round_down10(abs(sim_vals$alpha - alpha)) != epsilon){
-  #for(i in 1:10){
   
   if ( round_down10(abs(sim_vals$alpha - alpha)) > epsilon) {
     initial_boundaries <- initial_boundaries - z_mod
