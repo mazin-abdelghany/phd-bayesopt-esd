@@ -548,6 +548,29 @@ of_bounds <- calculate_of()
 tri_bounds <- triangular_bounds()
 ```
 
+Graph the bounds.
+
+```{r}
+ggplot() +
+  geom_line(mapping = aes(x = 1:3, y = pocock_bounds$upper_bounds, color = "Pocock"),
+            linetype = 2) +
+  geom_line(mapping = aes(x = 1:3, y = pocock_bounds$lower_bounds, color = "Pocock"),
+            linetype = 2) +
+  geom_line(mapping = aes(x = 1:3, y = of_bounds$upper_bounds, color = "O'Brien-Fleming")) +
+  geom_line(mapping = aes(x = 1:3, y = of_bounds$lower_bounds, color = "O'Brien-Fleming")) +
+  geom_line(mapping = aes(x = 1:3, y = tri_bounds$upper_bounds, color = "Triangular")) +
+  geom_line(mapping = aes(x = 1:3, y = tri_bounds$lower_bounds, color = "Triangular")) +
+  scale_color_manual(name = "Boundary types",
+                   breaks = c("Pocock", "O'Brien-Fleming", "Triangular"),
+                   values = c("Pocock" = "red", 
+                              "O'Brien-Fleming" = "blue", 
+                              "Triangular" = "purple")) +
+  labs(x = "Analysis Number", y = "Z score", 
+       title = "Boundary values for different equations")
+  
+```
+
+
 Calculate the expected sample size vectors.
 
 ```{r}
@@ -571,7 +594,9 @@ ggplot() +
   geom_line(mapping = aes(x = delta_vector, y = tri_ess, color = "Triangular")) +
   scale_color_manual(name = "Boundary types",
                      breaks = c("Pocock", "O'Brien-Fleming", "Triangular"),
-                     values = c("Pocock" = "red", "O'Brien-Fleming" = "blue", "Triangular" = "purple")) +
+                     values = c("Pocock" = "red", 
+                                "O'Brien-Fleming" = "blue", 
+                                "Triangular" = "purple")) +
   labs(x = "True \u03B4", y = "Expected sample size", 
        title = "Expected sample size over range of true \u03B4 values")
 ```
@@ -1269,3 +1294,148 @@ gp_optimized_8 <- gp_optim(gp = gp_empty_8,
                            restarts = 5,
                            verbose = FALSE)
 ```
+
+
+# Exploring `mvtnorm`
+
+```{r}
+library(bench)
+```
+
+`pmvnorm` is "smart" when it comes to single dimensional computations as it passes the values to `pnorm`.
+
+```{r}
+cat("pmvnorm\n\n")
+pmvnorm(lower = -Inf, upper = 2, mean = 0, sigma = 1)
+cat("\n\n")
+cat("pnorm\n\n")
+pnorm(2)
+```
+
+```{r}
+pmvnorm(lower = c(-Inf, -Inf), upper = c(Inf, 2), mean = c(0,0), sigma = diag(2))
+```
+
+```{r}
+bench::mark(
+  # 2d
+  pmvnorm(lower = c(-Inf, -Inf), upper = c(0, Inf),
+          mean = c(0,0), corr = diag(2)),
+  # 3d
+  pmvnorm(lower = c(-Inf, -Inf, -Inf), upper = c(0, Inf, Inf),
+          mean = c(0,0,0), corr = diag(3)),
+  check = FALSE
+)
+```
+
+Miwa algorithm is faster for calculations, but must be under 20 dimensions.
+
+```{r}
+bench::mark(
+  # 2d
+  pmvnorm(lower = c(-Inf, -Inf), upper = c(0, Inf),
+          mean = c(0,0), corr = diag(2)),
+  # 3d
+  pmvnorm(lower = c(-Inf, -Inf, -Inf), upper = c(0, Inf, Inf),
+          mean = c(0,0,0), corr = diag(3),
+          algorithm = Miwa()),
+  check = FALSE
+)
+```
+
+The Miwa algorithm does collapse multidimensional integrals.
+
+```{r}
+pmvnorm(lower = c(-3, -Inf, -Inf), upper = c(0, Inf, Inf),
+        mean = c(0,0,0), corr = diag(3),
+        algorithm = Miwa())
+```
+
+
+```{r}
+pmvnorm(lower = c(-Inf, -Inf, -4), upper = c(Inf, Inf, 0),
+        mean = c(0,0,0), corr = diag(3),
+        algorithm = Miwa())
+```
+
+
+```{r}
+pmvnorm(lower = c(-Inf, -2, -Inf), upper = c(Inf, 0, Inf),
+        mean = c(0,0,0), corr = diag(3),
+        algorithm = Miwa())
+```
+
+We can assess larger dimensional integrals.
+
+```{r}
+bench::mark(
+  
+  pmvnorm(
+    lower = c(-2, -0.3, 0, -0.6, 0.01, -1, -2, -3, -1, 0.2),
+    upper = rep(1, length.out = 10),
+    mean = rep(0, length.out = 10),
+    sigma = diag(10),
+    algorithm = GenzBretz()
+  ),
+  
+  pmvnorm(
+    lower = c(-2, -0.3, 0, -0.6, 0.01, -1, -2, -3, -1, 0.2),
+    upper = rep(1, length.out = 10),
+    mean = rep(0, length.out = 10),
+    sigma = diag(10),
+    algorithm = Miwa()
+  ),
+
+  pmvnorm(
+    lower = c(-Inf, -Inf, -Inf),
+    upper = c(0, Inf, Inf),
+    mean = c(0, 0, 0),
+    corr = diag(3),
+    algorithm = GenzBretz()
+  ),
+  
+  pmvnorm(
+    lower = c(-Inf, -Inf, -Inf),
+    upper = c(0, Inf, Inf),
+    mean = c(0, 0, 0),
+    corr = diag(3),
+    algorithm = Miwa()
+  ),
+  
+  pmvnorm(
+    lower = c(-Inf, -Inf, -Inf, -Inf),
+    upper = c(0, Inf, Inf, Inf),
+    mean = c(0, 0, 0),
+    corr = diag(4),
+    algorithm = GenzBretz()
+  ),
+  
+  pmvnorm(
+    lower = c(-Inf, -Inf, -Inf, -Inf),
+    upper = c(0, Inf, Inf, Inf),
+    mean = c(0, 0, 0),
+    corr = diag(4),
+    algorithm = Miwa()
+  ),
+  
+  pmvnorm(
+    lower = c(-Inf, -0.3, 0, -0.6, 0.01, -Inf, -2, -3, -1, 0.2),
+    upper = c(Inf, 1, 3, 2, 1, 0.4, Inf, 1, 2, 3),
+    mean = rep(0, length.out = 10),
+    sigma = diag(10),
+    algorithm = GenzBretz()
+  ),
+  
+  pmvnorm(
+    lower = c(-Inf, -0.3, 0, -0.6, 0.01, -Inf, -2, -3, -1, 0.2),
+    upper = c(Inf, 1, 3, 2, 1, 0.4, Inf, 1, 2, 3),
+    mean = rep(0, length.out = 10),
+    sigma = diag(10),
+    algorithm = Miwa()
+  ),
+  
+  check = FALSE
+)
+```
+
+
