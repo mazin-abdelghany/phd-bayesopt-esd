@@ -1328,8 +1328,6 @@ bench::mark(
 )
 ```
 
-Miwa algorithm is faster for calculations, but must be under 20 dimensions.
-
 ```{r}
 bench::mark(
   # 2d
@@ -1367,7 +1365,7 @@ pmvnorm(lower = c(-Inf, -2, -Inf), upper = c(Inf, 0, Inf),
 
 We can assess larger dimensional integrals.
 
-```{r}
+```{r, warning=FALSE}
 bench::mark(
   
   pmvnorm(
