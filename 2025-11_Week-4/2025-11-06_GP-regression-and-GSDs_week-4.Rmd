@@ -249,9 +249,11 @@ gsd_simulations <- function(n_analyses = 3,
 ```
 
 There are two mistakes that seem to have been issues:
+
 1. The $1/\texttt{delta_tild}$ term should be squared.
-2. The calculation of $\widetilde{delta}$ should be skipped, for now.
+2. The calculation of $\widetilde{\delta}$ should be skipped, for now.
 3. The individual information calculations do not match the information calculated at maximum and then fractionated over each analysis.
+* This because of sample size differences!
 
 ```{r}
 triangular_bounds <- function(n_analyses = 3,
