@@ -1015,7 +1015,101 @@ ggplot() +
        title = "Standard deviation of expected sample size over range of true \u03B4 values")
 ```
 
+Pull probabilities for plotting.
 
+```{r}
+pk_sim <- gsd_simulations(upper_bounds = pk$upper_bounds,
+                          lower_bounds = pk$lower_bounds)
+
+ob_sim <- gsd_simulations(upper_bounds = ob$upper_bounds,
+                          lower_bounds = ob$lower_bounds)
+
+tr_sim <- gsd_simulations(upper_bounds = tr$upper_bounds,
+                          lower_bounds = tr$lower_bounds)
+
+pk_probs <- rbind(
+  analysis1 = pk_sim$analysis_1,
+  analysis2 = pk_sim$analysis_2,
+  analysis3 = pk_sim$analysis_3
+)
+
+ob_probs <- rbind(
+  analysis1 = ob_sim$analysis_1,
+  analysis2 = ob_sim$analysis_2,
+  analysis3 = ob_sim$analysis_3
+)
+
+tr_probs <- rbind(
+  analysis1 = tr_sim$analysis_1,
+  analysis2 = tr_sim$analysis_2,
+  analysis3 = tr_sim$analysis_3
+)
+```
+
+
+Probability of stopping for futility under the null.
+
+```{r}
+ggplot() +
+  geom_line(mapping = aes(x = 1:3, y = pk_probs[,"futility_null"], color = "Pocock")) +
+  geom_line(mapping = aes(x = 1:3, y = ob_probs[,"futility_null"], color = "O'Brien-Fleming")) +
+  geom_line(mapping = aes(x = 1:3, y = tr_probs[,"futility_null"], color = "Triangular")) +
+  scale_color_manual(name = "Boundary types",
+                     breaks = c("Pocock", "O'Brien-Fleming", "Triangular"),
+                     values = c("Pocock" = "red", 
+                                "O'Brien-Fleming" = "blue", 
+                                "Triangular" = "purple")) +
+  labs(x = "Analysis number", y = "Probability of stopping", 
+       title = "Probability of stopping for futility under the null")
+```
+
+Probability of stopping for efficacy under the null.
+
+```{r}
+ggplot() +
+  geom_line(mapping = aes(x = 1:3, y = pk_probs[,"efficacy_null"], color = "Pocock")) +
+  geom_line(mapping = aes(x = 1:3, y = ob_probs[,"efficacy_null"], color = "O'Brien-Fleming")) +
+  geom_line(mapping = aes(x = 1:3, y = tr_probs[,"efficacy_null"], color = "Triangular")) +
+  scale_color_manual(name = "Boundary types",
+                     breaks = c("Pocock", "O'Brien-Fleming", "Triangular"),
+                     values = c("Pocock" = "red", 
+                                "O'Brien-Fleming" = "blue", 
+                                "Triangular" = "purple")) +
+  labs(x = "Analysis number", y = "Probability of stopping", 
+       title = "Probability of stopping for efficacy under the null")
+```
+
+Probability of stopping for futility under the alternative.
+
+```{r}
+ggplot() +
+  geom_line(mapping = aes(x = 1:3, y = pk_probs[,"futility_alt"], color = "Pocock")) +
+  geom_line(mapping = aes(x = 1:3, y = ob_probs[,"futility_alt"], color = "O'Brien-Fleming")) +
+  geom_line(mapping = aes(x = 1:3, y = tr_probs[,"futility_alt"], color = "Triangular")) +
+  scale_color_manual(name = "Boundary types",
+                     breaks = c("Pocock", "O'Brien-Fleming", "Triangular"),
+                     values = c("Pocock" = "red", 
+                                "O'Brien-Fleming" = "blue", 
+                                "Triangular" = "purple")) +
+  labs(x = "Analysis number", y = "Probability of stopping", 
+       title = "Probability of stopping for futility under the alternative")
+```
+
+Probability of stopping for efficacy under the alternative.
+
+```{r}
+ggplot() +
+  geom_line(mapping = aes(x = 1:3, y = pk_probs[,"efficacy_alt"], color = "Pocock")) +
+  geom_line(mapping = aes(x = 1:3, y = ob_probs[,"efficacy_alt"], color = "O'Brien-Fleming")) +
+  geom_line(mapping = aes(x = 1:3, y = tr_probs[,"efficacy_alt"], color = "Triangular")) +
+  scale_color_manual(name = "Boundary types",
+                     breaks = c("Pocock", "O'Brien-Fleming", "Triangular"),
+                     values = c("Pocock" = "red", 
+                                "O'Brien-Fleming" = "blue", 
+                                "Triangular" = "purple")) +
+  labs(x = "Analysis number", y = "Probability of stopping", 
+       title = "Probability of stopping for efficacy under the alternative")
+```
 
 # GP regression
 
