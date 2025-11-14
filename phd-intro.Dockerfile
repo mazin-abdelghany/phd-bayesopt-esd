@@ -11,7 +11,9 @@ RUN install2.r --error \
      mvtnorm \
      plotly \
      bench \
-     rpact
+     rpact \
+     profvis \
+     tictoc
 
 ## install RStan
 # RUN Rscript -e 'Sys.setenv(DOWNLOAD_STATIC_LIBV8 = 1)'
