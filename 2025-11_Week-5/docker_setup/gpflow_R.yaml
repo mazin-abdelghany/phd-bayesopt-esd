@@ -1,0 +1,14 @@
+name: gpflow_r
+
+services:
+  tensorflow:
+    build:
+      context: .
+      dockerfile: gpflow_R.Dockerfile
+    ports:
+      - 8889:8888
+    volumes:
+      - type: bind
+        source: ../GP_regression_gpflow
+        target: /tf
+    
