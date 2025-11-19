@@ -1,0 +1,685 @@
+---
+title: "Gaussian process regression in R using GPflow"
+author: "Paul D W Kirk"
+date: "2025-11-19"
+output: html_document
+---
+
+```{r setup, message=TRUE, warning=TRUE}
+library(reticulate)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(purrr)
+
+#Note: several examples taken or adapted from the gplite vignette.  Credit to Juho Piironen.
+
+
+# Point reticulate at the conda environment with GPflow installed
+use_condaenv("r-gpflow", required = TRUE)
+
+# Import Python modules
+gpf <- import("gpflow")
+tf  <- import("tensorflow")
+np  <- import("numpy", convert = FALSE)
+
+gpf$config$set_default_float(tf$float64)
+
+# Check versions (mirroring the GPflow kernels notebook)
+py_run_string("
+import sys, gpflow, tensorflow as tf, check_shapes
+print('Python      :', sys.version.replace('\\n', ' '))
+print('GPflow      :', gpflow.__version__)
+print('TensorFlow  :', tf.__version__)
+print('check_shapes:', getattr(check_shapes, '__version__', 'unknown'))
+")
+```
+
+# Introduction
+
+This document shows how to use **GPflow** (a Gaussian process library written in Python and built on TensorFlow) from **R** via **reticulate**.
+
+The structure roughly mirrors the official GPflow “getting started with kernels” notebook, but everything is driven from R:
+
+* construct synthetic data;
+* fit Gaussian process (GP) regression models with different covariance functions (kernels);
+* visualise posterior mean and uncertainty;
+* explore GP *priors* by drawing sample paths for different kernel hyperparameters;
+* demonstrate composite kernels formed by sums and products.
+
+All the statistical computation is done in Python/GPflow; R is used for orchestration and plotting.
+
+# Synthetic data
+
+We start with a simple one-dimensional regression problem: noisy observations of a sine function.
+
+```{r data}
+set.seed(123)
+
+N <- 100L
+X <- matrix(runif(N, 0, 10), ncol = 1)
+Y <- matrix(sin(X) + rnorm(N, 0, 0.1), ncol = 1)
+
+df_data <- data.frame(
+  x = as.numeric(X),
+  y = as.numeric(Y)
+)
+
+ggplot(df_data, aes(x = x, y = y)) +
+  geom_point(alpha = 0.7) +
+  labs(
+    x = "x",
+    y = "y",
+    title = "Synthetic data: noisy sine function"
+  ) +
+  theme_minimal()
+```
+
+# Converting data to NumPy and building a GP model
+
+GPflow expects NumPy arrays (or TensorFlow tensors). We use `numpy$array` to convert R matrices into NumPy arrays.
+
+```{r numpy-data}
+# Convert R matrices to NumPy arrays
+X_np <- np$array(X)
+Y_np <- np$array(Y)
+```
+
+We now define a helper that:
+
+1. Builds a GP regression model with a supplied kernel;
+2. Optimises the marginal log-likelihood using GPflow’s Scipy optimiser;
+3. Returns the fitted model.
+
+This is analogous to what the GPflow notebooks do with helper functions like `plot_kernel_prediction`.
+
+```{r fit-helper}
+fit_gpr_model <- function(X_np, Y_np, kernel) {
+  model <- gpf$models$GPR(
+    data   = reticulate::tuple(X_np, Y_np),
+    kernel = kernel
+  )
+  
+  scipy_opt <- gpf$optimizers$Scipy()
+  scipy_opt$minimize(
+    model$training_loss,
+    variables = model$trainable_variables
+  )
+  
+  model
+}
+```
+
+# Predictive mean and uncertainty for a single kernel
+
+First, we reproduce a standard squared exponential (RBF) example.
+
+```{r rbf-model}
+# Prediction grid in R, then converted to NumPy
+Xnew_R  <- matrix(seq(0, 10, length.out = 200), ncol = 1)
+Xnew_np <- np$array(Xnew_R)
+
+# RBF (squared exponential) kernel
+kernel_rbf <- gpf$kernels$SquaredExponential()
+
+# Fit model
+model_rbf <- fit_gpr_model(X_np, Y_np, kernel_rbf)
+
+# Predictive mean and variance
+pred_rbf  <- model_rbf$predict_f(Xnew_np)
+Ymean_rbf <- pred_rbf[[1]]$numpy()
+Yvar_rbf  <- pred_rbf[[2]]$numpy()
+
+mean_vec  <- as.numeric(Ymean_rbf)
+var_vec   <- as.numeric(Yvar_rbf)
+sd_vec    <- sqrt(var_vec)
+
+df_pred_rbf <- data.frame(
+  x     = as.numeric(Xnew_R[, 1]),
+  mean  = mean_vec,
+  lower = mean_vec - 1.96 * sd_vec,
+  upper = mean_vec + 1.96 * sd_vec
+)
+
+ggplot() +
+  geom_ribbon(
+    data = df_pred_rbf,
+    aes(x = x, ymin = lower, ymax = upper),
+    alpha = 0.2
+  ) +
+  geom_line(
+    data = df_pred_rbf,
+    aes(x = x, y = mean),
+    linewidth = 1
+  ) +
+  geom_point(
+    data = df_data,
+    aes(x = x, y = y),
+    size = 1.2
+  ) +
+  labs(
+    x = "x",
+    y = "y",
+    title = "GP regression with RBF kernel (95% predictive interval)"
+  ) +
+  theme_minimal()
+```
+
+# Visualising kernels via GP priors
+
+In the GPflow kernels notebook, helper functions like `plot_kernel_samples` draw sample paths from the GP *prior* for a given kernel and set of hyperparameters. Here we implement a similar idea in R:
+
+1. Fix a grid of inputs;
+2. Compute the covariance matrix (K(x, x')) implied by the kernel;
+3. Draw sample paths from the multivariate normal (\mathcal{N}(0, K)).
+
+For the prior visualisations below, we compute the squared exponential covariance directly in R (rather than via GPflow) and sample from the resulting multivariate normal. This is mathematically identical to what GPflow would do, but avoids some low-level numerical quirks when interacting with TensorFlow via reticulate. The posterior fitting and prediction continue to use GPflow as intended.
+
+
+```{r prior-draws-setup}
+# Input grid for prior visualisation (used for plotting)
+Xgrid_R <- matrix(seq(0, 10, length.out = 100), ncol = 1)
+
+# Squared Exponential / RBF covariance in pure R
+rbf_covariance <- function(x, lengthscale, variance) {
+  x <- as.numeric(x)
+  dists <- as.matrix(dist(x))
+  K <- variance * exp(- (dists^2) / (2 * lengthscale^2))
+  K
+}
+
+# Helper to draw from a zero-mean GP prior with covariance K
+draw_gp_prior_R <- function(K, n_draws = 5L, jitter = 1e-6) {
+  n <- nrow(K)
+  K_jitter <- K + diag(jitter, n)
+  L <- chol(K_jitter)
+  Z <- matrix(rnorm(n * n_draws), nrow = n)  # standard normals
+  F <- t(L) %*% Z                            # each column is a GP draw
+  F
+}
+```
+
+## RBF prior with different lengthscales and variance
+
+We define several RBF kernels with different hyperparameter settings. This closely parallels the prior plots in the GPflow documentation.
+
+```{r prior-draws-rbf}
+# Define RBF hyperparameters (matching the GPflow examples)
+rbf_params <- list(
+  "RBF, ℓ = 0.3, σ² = 1"  = list(ell = 0.3, var = 1.0),
+  "RBF, ℓ = 1.0, σ² = 1"  = list(ell = 1.0, var = 1.0),
+  "RBF, ℓ = 3.0, σ² = 1"  = list(ell = 3.0, var = 1.0),
+  "RBF, ℓ = 1.0, σ² = 4"  = list(ell = 1.0, var = 4.0)
+)
+
+n_draws <- 5L
+
+prior_draws_list <- purrr::imap_dfr(
+  rbf_params,
+  function(pars, label) {
+    K   <- rbf_covariance(Xgrid_R[, 1], lengthscale = pars$ell, variance = pars$var)
+    F   <- draw_gp_prior_R(K, n_draws = n_draws)
+    dfF <- as.data.frame(F)
+    names(dfF) <- paste0("draw_", seq_len(n_draws))
+    
+    df_long <- dfF |>
+      mutate(x = as.numeric(Xgrid_R[, 1])) |>
+      tidyr::pivot_longer(
+        cols = starts_with("draw_"),
+        names_to = "draw",
+        values_to = "f"
+      ) |>
+      mutate(kernel = label)
+    
+    df_long
+  }
+)
+
+ggplot(prior_draws_list, aes(x = x, y = f, group = draw, colour = draw)) +
+  geom_line(alpha = 0.8) +
+  facet_wrap(~ kernel, ncol = 2, scales = "free_y") +
+  labs(
+    x = "x",
+    y = "f(x)",
+    title = "Draws from GP priors with different RBF hyperparameters"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
+
+You should see that:
+
+* smaller lengthscales produce very wiggly functions;
+* larger lengthscales produce smoother, slowly varying functions;
+* larger variance increases the vertical spread of the prior.
+
+# Comparing different covariance functions
+
+GPflow provides a range of kernels. Here we compare:
+
+* Squared Exponential (RBF);
+* Matérn 3/2;
+* Rational Quadratic.
+
+We fit a model for each kernel and plot the predictive means together. This mirrors the spirit of GPflow’s `plot_kernel_prediction` helper, but implemented in R.
+
+```{r multiple-kernels}
+# Define kernels
+kernel_list <- list(
+  "RBF"                = gpf$kernels$SquaredExponential(),
+  "Matérn 3/2"         = gpf$kernels$Matern32(),
+  "Rational Quadratic" = gpf$kernels$RationalQuadratic()
+)
+
+# Fit models for each kernel
+models <- lapply(kernel_list, function(k) fit_gpr_model(X_np, Y_np, k))
+
+# Function to get prediction data frame from a model
+prediction_df <- function(model, Xnew_R, Xnew_np, name) {
+  pred  <- model$predict_f(Xnew_np)
+  mean  <- as.numeric(pred[[1]]$numpy())
+  var   <- as.numeric(pred[[2]]$numpy())
+  sd    <- sqrt(var)
+  
+  data.frame(
+    x     = as.numeric(Xnew_R[, 1]),
+    mean  = mean,
+    lower = mean - 1.96 * sd,
+    upper = mean + 1.96 * sd,
+    kernel = name
+  )
+}
+
+df_pred_all <- purrr::imap_dfr(models, ~prediction_df(.x, Xnew_R, Xnew_np, .y))
+
+ggplot() +
+  geom_point(
+    data = df_data,
+    aes(x = x, y = y),
+    size = 1.2,
+    alpha = 0.5
+  ) +
+  geom_ribbon(
+    data = df_pred_all,
+    aes(x = x, ymin = lower, ymax = upper, fill = kernel),
+    alpha = 0.15
+  ) +
+  geom_line(
+    data = df_pred_all,
+    aes(x = x, y = mean, colour = kernel),
+    linewidth = 1
+  ) +
+  labs(
+    x = "x",
+    y = "y",
+    title = "GP regression: effect of different covariance functions"
+  ) +
+  theme_minimal()
+```
+
+
+# Composite kernels and structure
+
+A key feature of GPflow (and GP modelling in general) is the ability to construct *composite* kernels by **summing** and **multiplying** simpler ones. This allows you to encode structure such as:
+
+* long-term smooth trends plus short-term variation;
+* periodic components plus noise;
+* different behaviours in different input dimensions.
+
+In GPflow, kernel objects support `+` and `*` operators. We demonstrate two simple composites:
+
+* RBF + Linear: smooth function with a global linear trend;
+* Periodic × RBF: locally smooth, periodic structure.
+
+```{r composite-kernels}
+# Base kernels
+k_rbf      <- gpf$kernels$SquaredExponential()
+k_linear   <- gpf$kernels$Linear()
+k_per_base <- gpf$kernels$SquaredExponential(lengthscales = 0.5)
+k_periodic <- gpf$kernels$Periodic(base_kernel = k_per_base, period = 2.0)
+
+# Composite kernels
+kernel_sum  <- k_rbf + k_linear                    # trend + smooth deviations
+kernel_prod <- k_periodic * gpf$kernels$SquaredExponential(lengthscales = 2.0)
+
+composite_kernels <- list(
+  "RBF + Linear"                        = kernel_sum,
+  "Periodic × RBF (locally smooth periodic)" = kernel_prod
+)
+
+# Fit models with composite kernels
+models_composite <- lapply(composite_kernels, function(k) fit_gpr_model(X_np, Y_np, k))
+
+df_pred_composite <- purrr::imap_dfr(
+  models_composite,
+  ~prediction_df(.x, Xnew_R, Xnew_np, .y)
+)
+
+ggplot() +
+  geom_point(
+    data = df_data,
+    aes(x = x, y = y),
+    size = 1.2,
+    alpha = 0.5
+  ) +
+  geom_ribbon(
+    data = df_pred_composite,
+    aes(x = x, ymin = lower, ymax = upper, fill = kernel),
+    alpha = 0.15
+  ) +
+  geom_line(
+    data = df_pred_composite,
+    aes(x = x, y = mean, colour = kernel),
+    linewidth = 1
+  ) +
+  labs(
+    x = "x",
+    y = "y",
+    title = "Composite kernels: sums and products"
+  ) +
+  theme_minimal()
+```
+
+You can experiment with different base kernels and hyperparameters to see how the composite behaviour changes.
+
+# Additional worked examples (mirroring the gplite quickstart)
+
+The following examples mirror those in a gplite-based quickstart document, but are implemented *only* using GPflow.
+
+## Small-sample regression on ([0, 1])
+
+This example uses only six design points on ([0,1]), showing how the GP interpolates and extrapolates with relatively little data.
+
+```{r small-regression}
+set.seed(10)
+n_small <- 6L
+x_small <- matrix(seq(0, 1, length.out = n_small), ncol = 1)
+y_small <- sin(2 * pi * x_small) + rnorm(n_small, 0, 1e-1)
+
+df_small <- data.frame(
+  x = as.numeric(x_small),
+  y = as.numeric(y_small)
+)
+
+ggplot(df_small, aes(x = x, y = y)) +
+  geom_point(size = 2) +
+  xlab("x") + ylab("y") +
+  xlim(-0.5, 1.5) + ylim(-3, 2.5) +
+  ggtitle("Small-sample GP regression example") +
+  theme_minimal()
+
+# Convert to NumPy
+X_small_np <- np$array(x_small)
+Y_small_np <- np$array(y_small)
+
+# Squared Exponential kernel
+kernel_small <- gpf$kernels$SquaredExponential()
+
+# Fit GP model
+model_small <- fit_gpr_model(X_small_np, Y_small_np, kernel_small)
+
+# Prediction grid
+xt_small_R  <- matrix(seq(-0.5, 1.5, length.out = 150), ncol = 1)
+xt_small_np <- np$array(xt_small_R)
+
+pred_small  <- model_small$predict_f(xt_small_np)
+Ymean_small <- pred_small[[1]]$numpy()
+Yvar_small  <- pred_small[[2]]$numpy()
+
+mean_small  <- as.numeric(Ymean_small)
+var_small   <- as.numeric(Yvar_small)
+sd_small    <- sqrt(var_small)
+
+df_pred_small <- data.frame(
+  x     = as.numeric(xt_small_R[, 1]),
+  mean  = mean_small,
+  lower = mean_small - 2 * sd_small,
+  upper = mean_small + 2 * sd_small
+)
+
+ggplot() +
+  geom_ribbon(
+    data = df_pred_small,
+    aes(x = x, ymin = lower, ymax = upper),
+    fill = "lightgrey"
+  ) +
+  geom_line(
+    data = df_pred_small,
+    aes(x = x, y = mean),
+    size = 0.5
+  ) +
+  geom_point(
+    data = df_small,
+    aes(x = x, y = y),
+    size = 2
+  ) +
+  xlab("x") + ylab("y") +
+  xlim(-0.5, 1.5) + ylim(-3, 2.5) +
+  ggtitle("GP regression (small sample) with RBF kernel") +
+  theme_minimal()
+```
+
+We can also draw sample functions from the **posterior** using `predict_f_samples`. This is analogous to `gp_draw` in gplite.
+
+```{r small-regression-posterior-draws}
+ndraws <- 20L
+
+# Predictive samples: shape [S, N, 1]
+samples_tf <- model_small$predict_f_samples(xt_small_np, num_samples = as.integer(ndraws))
+samples_arr <- samples_tf$numpy()  # R array with dims c(S, N, 1)
+
+# Convert to matrix: N x S
+samples_mat <- t(samples_arr[ , , 1])
+
+df_draws_small <- as.data.frame(samples_mat)
+names(df_draws_small) <- paste0("draw_", seq_len(ndraws))
+
+df_draws_long <- df_draws_small |>
+  mutate(x = as.numeric(xt_small_R[, 1])) |>
+  pivot_longer(
+    cols = starts_with("draw_"),
+    names_to = "draw",
+    values_to = "f"
+  )
+
+pp <- ggplot() + xlab("x") + ylab("y")
+
+for (i in seq_len(ndraws)) {
+  draw_name <- paste0("draw_", i)
+  pp <- pp + geom_line(
+    data = df_draws_long %>% filter(draw == draw_name),
+    aes(x = x, y = f),
+    colour = "darkgrey"
+  )
+}
+
+pp +
+  geom_point(data = df_small, aes(x = x, y = y), colour = "black", size = 2) +
+  xlim(-0.5, 1.5) + ylim(-3, 2.5) +
+  ggtitle("Posterior draws from GP regression (small-sample example)") +
+  theme_minimal()
+```
+
+## Squared Exponential prior: alternative hyperparameter settings
+
+The gplite quickstart explores how varying the SE lengthscale and amplitude affects the prior. Here we use the same hyperparameter combinations, but via GPflow.
+
+```{r prior-draws-rbf-alt}
+set.seed(10)
+
+# Match the four settings from the gplite example
+rbf_params_alt <- list(
+  "ℓ = 0.3, σ² = 1"  = list(ell = 0.3,  var = 1.0),
+  "ℓ = 0.05, σ² = 3" = list(ell = 0.05, var = 3.0),
+  "ℓ = 0.9, σ² = 3"  = list(ell = 0.9,  var = 3.0),
+  "ℓ = 0.3, σ² = 3"  = list(ell = 0.3,  var = 3.0)
+)
+
+# Test points on [-0.5, 1.5]
+Xgrid_se_R <- matrix(seq(-0.5, 1.5, length.out = 150), ncol = 1)
+
+ndraws_se <- 20L
+
+prior_draws_se <- purrr::imap_dfr(
+  rbf_params_alt,
+  function(pars, label) {
+    K   <- rbf_covariance(Xgrid_se_R[, 1], lengthscale = pars$ell, variance = pars$var)
+    F   <- draw_gp_prior_R(K, n_draws = ndraws_se)
+    dfF <- as.data.frame(F)
+    names(dfF) <- paste0("draw_", seq_len(ndraws_se))
+    
+    df_long <- dfF |>
+      mutate(x = as.numeric(Xgrid_se_R[, 1])) |>
+      tidyr::pivot_longer(
+        cols = starts_with("draw_"),
+        names_to = "draw",
+        values_to = "f"
+      ) |>
+      mutate(setting = label)
+    
+    df_long
+  }
+)
+
+ggplot(prior_draws_se, aes(x = x, y = f, group = draw, colour = draw)) +
+  geom_line(alpha = 0.8) +
+  facet_wrap(~ setting, ncol = 2, scales = "free_y") +
+  labs(
+    x = "x",
+    y = "f(x)",
+    title = "Draws from SE GP priors for different hyperparameter settings"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
+
+Again, shorter lengthscales correspond to more rapidly varying functions, and larger variances yield greater vertical spread.
+
+## Quasi-periodic AirPassengers example
+
+The gplite vignette uses the **AirPassengers** data to illustrate combining several covariance functions:
+
+* a constant term;
+* a linear trend;
+* a quasi-periodic term (periodic with period 12, modulated by a long lengthscale SE).
+
+We now construct an analogous composite kernel in GPflow.
+
+```{r airpassengers-data}
+y_all <- as.numeric(datasets::AirPassengers)
+x_all <- seq_along(y_all)
+
+# Hold out 2 years as a test set (though here we will actually predict for the full series)
+nt    <- 24L
+n_ap  <- length(x_all) - nt
+x_tr  <- x_all[1:n_ap]
+y_tr  <- y_all[1:n_ap]
+xt_ap <- x_all
+yt_ap <- y_all
+
+df_ap <- data.frame(
+  time = x_all,
+  passengers = y_all,
+  set = c(rep("train", n_ap), rep("test", nt))
+)
+
+ggplot() +
+  geom_line(data = df_ap, aes(x = time, y = passengers, colour = set)) +
+  scale_colour_manual(values = c("train" = "black", "test" = "red")) +
+  xlab("Time (months)") + ylab("Number of passengers") +
+  ggtitle("AirPassengers data: training vs held-out period") +
+  theme_minimal()
+```
+
+We take logs to stabilise the variance and make the process closer to stationary.
+
+```{r airpassengers-model}
+# Log transform
+yscaled_tr <- log(y_tr)
+
+# Convert to NumPy (ensure floating point, not integers)
+X_ap_tr_R   <- matrix(as.numeric(x_tr),  ncol = 1)
+X_ap_all_R  <- matrix(as.numeric(x_all), ncol = 1)
+
+X_ap_tr_np  <- np$array(X_ap_tr_R)   # now float64
+X_ap_all_np <- np$array(X_ap_all_R)
+Y_ap_tr_np  <- np$array(matrix(as.numeric(yscaled_tr), ncol = 1))
+
+
+# Construct composite kernel in GPflow to match gplite:
+# Constant + Linear + (Periodic * SE_long) for quasi-periodic pattern
+
+# Base kernels
+k_const_ap   <- gpf$kernels$Constant()
+k_linear_ap  <- gpf$kernels$Linear()
+
+# Create periodic kernel with SHORT lengthscale base (for within-period correlation)
+k_se_base <- gpf$kernels$SquaredExponential(lengthscales = 1.0)  # Short lengthscale for base
+k_periodic_ap <- gpf$kernels$Periodic(base_kernel = k_se_base, period = 12.0)
+
+# Create the modulation envelope (long lengthscale SE)
+k_se_long_ap <- gpf$kernels$SquaredExponential(lengthscales = 100.0)
+
+# MULTIPLY periodic and long SE to get quasi-periodic (matching gplite: cf2*cf3)
+k_quasiperiodic <- k_periodic_ap * k_se_long_ap
+
+# Final composite kernel (matching gplite: cf0 + cf1 + cf2*cf3)
+kernel_ap <- k_const_ap + k_linear_ap + k_quasiperiodic
+
+# Fit GP model on log data
+model_ap <- fit_gpr_model(X_ap_tr_np, Y_ap_tr_np, kernel_ap)
+```
+
+We now predict on the full time range and transform back from log scale.
+
+```{r airpassengers-prediction}
+pred_ap <- model_ap$predict_f(X_ap_all_np)
+
+mean_ap_log <- as.numeric(pred_ap[[1]]$numpy())
+var_ap_log  <- as.numeric(pred_ap[[2]]$numpy())
+sd_ap_log   <- sqrt(var_ap_log)
+
+# Back-transform to the original scale
+pred_ap_mean <- exp(mean_ap_log)
+pred_ap_lb   <- exp(mean_ap_log - 2 * sd_ap_log)
+pred_ap_ub   <- exp(mean_ap_log + 2 * sd_ap_log)
+
+df_pred_ap <- data.frame(
+  time = x_all,
+  mean = pred_ap_mean,
+  lower = pred_ap_lb,
+  upper = pred_ap_ub
+)
+
+ggplot() +
+  geom_ribbon(
+    data = df_pred_ap,
+    aes(x = time, ymin = lower, ymax = upper),
+    fill = "lightgrey"
+  ) +
+  geom_line(
+    data = df_pred_ap,
+    aes(x = time, y = mean),
+    colour = "black",
+    alpha = 0.5
+  ) +
+  geom_line(
+    data = df_ap %>% filter(set == "train"),
+    aes(x = time, y = passengers),
+    colour = "black"
+  ) +
+  geom_line(
+    data = df_ap %>% filter(set == "test"),
+    aes(x = time, y = passengers),
+    colour = "red",
+    alpha = 0.5
+  ) +
+  xlab("Time (months)") +
+  ylab("Number of passengers") +
+  ggtitle("Quasi-periodic GPfit to AirPassengers (GPflow)") +
+  theme_minimal()
+```
+
+
