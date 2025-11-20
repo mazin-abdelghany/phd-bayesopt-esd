@@ -17,3 +17,18 @@ In order to see the files within the source directory:
 2. In the Files panel, under "More", click "Go To Working Directory". Any files in the source directory should appear here. Any files created within this directory, will also be saved in the source directory.
 
 Open the RMarkdown file, and run as normal.
+
+## Addition of Python, TensorFlow, and GPflow
+
+In Week 5 and onwards, Gaussian process (GP) regression is implemented using GPflow, a library built in Python on TensorFlow.
+
+To run the Jupyter notebook:
+1. Ensure that you have Docker installed for your system.
+2. Git cloe the repository to your directory of choice.
+3. `cd` to the director in which you have cloned the repository.
+4. `cd` into `z_docker_setup`.
+5. Run `docker compose -f gpflow.yaml up`.
+6. In your browser of choice, open `http://localhost:8889`.
+7. Copy and paste the token outputted in the terminal after the `docker compose` command executed above
+
+The folders with format `YYYY-MM_Week-` should be available within the Jupyter environment. Notebooks can be run as normal.
