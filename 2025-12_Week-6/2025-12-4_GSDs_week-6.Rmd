@@ -43,7 +43,7 @@ The functions needed for the above steps are:
 
 1. `triangular_bounds()`
 2. `pocock_bounds()`
-3. `ob_bounds()`
+3. `of_bounds()`
 4. `gsd_simulations()`
 5. `ess_simulations()`
 
@@ -244,14 +244,14 @@ gsd_simulations <- function(n_analyses = 3,
   
   # calculate the expected sample size
   ess <- sum(n_patients * sum_probs)
-  var_ess <- sum(n_patients^2 * sum_probs) - ess^2
+  vss <- sum(n_patients^2 * sum_probs) - ess^2
   
   # add the expected sample size to the list
-  return_values <- append(probs_to_return, values = c(ess, var_ess, alpha, power))
+  return_values <- append(probs_to_return, values = c(ess, vss, alpha, power))
   
   # name the list
   names_for_list <- as.vector(sapply("analysis_", paste0, 1:n_analyses))
-  names_for_list <- c(names_for_list, "expected_sample_size", "var_expected_sample_size",
+  names_for_list <- c(names_for_list, "expected_sample_size", "var_sample_size",
                       "alpha", "power")
   names(return_values) <- names_for_list
   
@@ -398,12 +398,12 @@ bench::mark(
 
 Interval bisection is faster.
 
-### `ob_bounds_ib()`
+### `of_bounds_ib()`
 
 Get O'Brien-Fleming bounds with interval bisection.
 
 ```{r}
-ob_bounds_ib <- function(n_analyses = 3,
+of_bounds_ib <- function(n_analyses = 3,
                           alpha = 0.05,
                           n_patients = c(20, 40, 60)) {
   
@@ -471,15 +471,15 @@ ob_bounds_ib <- function(n_analyses = 3,
 ```
 
 ```{r, eval=FALSE}
-ob_bounds_ib()
+of_bounds_ib()
 ```
 
-### `ob_bounds()`
+### `of_bounds()`
 
 Get O'Brien-Fleming bounds with incremental steps.
 
 ```{r}
-ob_bounds <-  function(n_analyses = 3,
+of_bounds <-  function(n_analyses = 3,
                        alpha = 0.05,
                        n_patients = c(20, 40, 60)) {
   
@@ -542,19 +542,339 @@ ob_bounds <-  function(n_analyses = 3,
 ```
 
 ```{r}
-ob_bounds()
+of_bounds()
 ```
 
 ### Which O'Brien-Fleming calculation is faster?
 
 ```{r}
 bench::mark(
-  ob_bounds(),
-  ob_bounds_ib(),
+  of_bounds(),
+  of_bounds_ib(),
   check = FALSE
 )
 ```
 
+### `tri_bounds()`
+
+```{r}
+tri_bounds <- function(n_analyses = 3,
+                       alpha = 0.05,
+                       delta = 0.5) {
+  
+  I_L_term1 <- (4 * (0.583^2)) / n_analyses
+  I_L_term2 <- 8 * log(1/(2*alpha))
+  I_L_term3 <- (2 * 0.583) / sqrt(n_analyses)
+  
+  I_L <- (sqrt(I_L_term1 + I_L_term2) - I_L_term3)^2 * (1 / delta)^2
+  
+  bounds_term1 <- (2/delta) * log(1/(2*alpha))
+  bounds_term2 <- 0.583 * sqrt(I_L / n_analyses)
+  
+  analysis_fracs <- (1:n_analyses / n_analyses)
+  
+  I_L_fracs <- I_L * analysis_fracs
+  
+  e_l <- (bounds_term1 - bounds_term2 + ((0.25*delta) * analysis_fracs * I_L )) / sqrt(I_L_fracs)
+
+  f_l <- (-bounds_term1 + bounds_term2 + ((0.75*delta) * analysis_fracs * I_L )) / sqrt(I_L_fracs)
+  
+  return(list(upper_bounds = e_l, lower_bounds = f_l, info = I_L_fracs))
+  
+}
+```
+
+
 ## Correct the bounds
+
+In one-sided tests where the null is $\theta = 0$ and the alternative is $\theta > 0$, the final Pocock and O'Brien-Fleming bounds are set to be equal at the positive bound. For example, if the Pocock bounds are $\texttt{upper}=[2, 2, 2]$ and $\texttt{lower}=[-2, -2, -2]$, then the final bounds would be $\texttt{upper}=[2, 2, 2]$ and $\texttt{lower}=[-2, -2, 2]$. This needs to be implemented in the bounds calculations.
+
+```{r}
+pocock_bounds <- function(n_analyses = 3,
+                          alpha = 0.05,
+                          n_patients = c(20, 40, 60)) {
+  
+  # the precision of the estimate for alpha
+  epsilon <- 1e-8
+  
+  # starting upper bounds
+  ub1 <- rep(0, length.out = n_analyses)
+  lb1 <- -ub1
+  
+  # starting lower bounds
+  ub2 <- rep(10, length.out = n_analyses)
+  lb2 <- -ub2
+  
+  # first alpha calculation
+  sim <- gsd_simulations(n_analyses = n_analyses,
+                            upper_bounds = ub1,
+                            lower_bounds = lb1,
+                            n_patients = n_patients)
+  
+  while ( abs(sim$alpha - alpha) > epsilon) {
+    
+    # calculate the first midpoint
+    mid_u <- (ub1 + ub2) / 2
+    mid_l <- -mid_u 
+    
+    # calculate the simulated alpha
+    sim <- gsd_simulations(n_analyses = n_analyses,
+                            upper_bounds = mid_u,
+                            lower_bounds = mid_l,
+                            n_patients = n_patients)
+    
+    # 
+    if (sim$alpha > alpha) {
+      
+      ub1 <- mid_u
+      lb1 <- mid_l
+      
+    } else {
+      
+      ub2 <- mid_u
+      lb2 <- mid_l
+      
+    }
+    
+  } 
+  
+  # return the values of interest
+  return( list(upper_bounds = ub1, 
+               lower_bounds = c(lb1[1:n_analyses-1], ub1[n_analyses]), 
+               simulation = sim) )
+  
+}
+```
+
+```{r}
+of_bounds <- function(n_analyses = 3,
+                          alpha = 0.05,
+                          n_patients = c(20, 40, 60)) {
+  
+  # the precision of the estimate for alpha
+  epsilon <- 1e-8
+  
+  # starting upper bounds
+  ub1 <- rep(0, length.out = n_analyses)
+  lb1 <- -ub1
+  
+  # starting lower bounds
+  ub2 <- rep(10, length.out = n_analyses)
+  lb2 <- -ub2
+  
+  # ob bounds
+  ob_u1 <- ub1 * (1:n_analyses / n_analyses)^-0.5
+  ob_l1 <- -ob_u1
+  
+  ob_u2 <- ub2 * (1:n_analyses / n_analyses)^-0.5
+  ob_l2 <- -ob_u2
+  
+  # first alpha calculation
+  sim <- gsd_simulations(n_analyses = n_analyses,
+                            upper_bounds = ob_u1,
+                            lower_bounds = ob_l1,
+                            n_patients = n_patients)
+  
+  while ( abs(sim$alpha - alpha) > epsilon) {
+    
+    # calculate the first midpoint
+    mid_u <- (ub1 + ub2) / 2
+    mid_l <- -mid_u 
+    
+    # get ob bounds
+    mid_ob_u <- mid_u * (1:n_analyses / n_analyses)^-0.5
+    mid_ob_l <- -mid_ob_u
+    
+    # calculate the simulated alpha
+    sim <- gsd_simulations(n_analyses = n_analyses,
+                            upper_bounds = mid_ob_u,
+                            lower_bounds = mid_ob_l,
+                            n_patients = n_patients)
+    
+    # 
+    if (sim$alpha > alpha) {
+      
+      ub1 <- mid_u
+      lb1 <- mid_l
+      
+    } else {
+      
+      ub2 <- mid_u
+      lb2 <- mid_l
+      
+    }
+    
+  } 
+  
+  # return the values of interest
+  return( list(upper_bounds = mid_ob_u, 
+               lower_bounds = c(mid_ob_l[1:n_analyses-1], mid_ob_u[n_analyses]), 
+               simulation = sim) )
+  
+}
+```
+
+Test the functions.
+
+```{r}
+pocock_bounds()
+of_bounds()
+```
+
+## Calculate ESS, VSS, and power
+
+Calculate the boundaries.
+
+```{r}
+pocock_bounds <- pocock_bounds()
+of_bounds <- of_bounds()
+tri_bounds <- tri_bounds()
+```
+
+Get values for ESS, VSS, and power.
+
+First, generate $\delta$ vector.
+
+```{r}
+deltas <- seq(from = 0, to = 1, by = 0.001)
+```
+
+### Pocock
+
+```{r}
+pk_power <- vector(mode = "numeric", length = length(deltas))
+pk_ess <- vector(mode = "numeric", length = length(deltas))
+pk_vss <- vector(mode = "numeric", length = length(deltas))
+
+for (i in 1:length(deltas)) {
+  
+  sim <- gsd_simulations(upper_bounds = pocock_bounds$upper_bounds,
+                         lower_bounds = pocock_bounds$lower_bounds,
+                         alt_hypothesis = deltas[i])
+  
+  pk_power[i] <- sim$power
+  pk_ess[i] <- sim$expected_sample_size
+  pk_vss[i] <- sim$var_sample_size
+}
+```
+
+### O'Brien-Fleming
+
+```{r}
+of_power <- vector(mode = "numeric", length = length(deltas))
+of_ess <- vector(mode = "numeric", length = length(deltas))
+of_vss <- vector(mode = "numeric", length = length(deltas))
+
+for (i in 1:length(deltas)) {
+  
+  sim <- gsd_simulations(upper_bounds = of_bounds$upper_bounds,
+                         lower_bounds = of_bounds$lower_bounds,
+                         alt_hypothesis = deltas[i])
+  
+  of_power[i] <- sim$power
+  of_ess[i] <- sim$expected_sample_size
+  of_vss[i] <- sim$var_sample_size
+}
+```
+
+### Triangular
+
+```{r}
+tr_power <- vector(mode = "numeric", length = length(deltas))
+tr_ess <- vector(mode = "numeric", length = length(deltas))
+tr_vss <- vector(mode = "numeric", length = length(deltas))
+
+for (i in 1:length(deltas)) {
+  
+  sim <- gsd_simulations(upper_bounds = tri_bounds$upper_bounds,
+                         lower_bounds = tri_bounds$lower_bounds,
+                         alt_hypothesis = deltas[i])
+  
+  tr_power[i] <- sim$power
+  tr_ess[i] <- sim$expected_sample_size
+  tr_vss[i] <- sim$var_sample_size
+  
+}
+```
+
+### Plot the bounds
+
+```{r}
+ggplot() +
+  geom_line(mapping = aes(x = 1:3, y = pocock_bounds$upper_bounds, color = "Pocock"),
+            linetype = 2) +
+  geom_line(mapping = aes(x = 1:3, y = pocock_bounds$lower_bounds, color = "Pocock"),
+            linetype = 2) +
+  geom_line(mapping = aes(x = 1:3, y = of_bounds$upper_bounds, color = "O'Brien-Fleming")) +
+  geom_line(mapping = aes(x = 1:3, y = of_bounds$lower_bounds, color = "O'Brien-Fleming")) +
+  geom_line(mapping = aes(x = 1:3, y = tri_bounds$upper_bounds, color = "Triangular")) +
+  geom_line(mapping = aes(x = 1:3, y = tri_bounds$lower_bounds, color = "Triangular")) +
+  scale_color_manual(name = "Boundary types",
+                   breaks = c("Pocock", "O'Brien-Fleming", "Triangular"),
+                   values = c("Pocock" = "red", 
+                              "O'Brien-Fleming" = "blue", 
+                              "Triangular" = "purple")) +
+  labs(x = "Analysis Number", y = "Z score", 
+       title = "Boundary values for different equations")
+```
+
+
+### ESS
+
+```{r}
+ggplot() + 
+  geom_line(mapping = aes(x = deltas, y = pk_ess, color = "Pocock")) +
+  geom_line(mapping = aes(x = deltas, y = of_ess, color = "O'Brien-Fleming")) +
+  geom_line(mapping = aes(x = deltas, y = tr_ess, color = "Triangular")) +
+  scale_color_manual(name = "Boundary types",
+                     breaks = c("Pocock", "O'Brien-Fleming", "Triangular"),
+                     values = c("Pocock" = "red", 
+                                "O'Brien-Fleming" = "blue", 
+                                "Triangular" = "purple")) +
+  labs(x = "True \u03B4", y = "Expected sample size", 
+       title = "Expected sample size over range of true \u03B4 values")
+```
+
+
+### VSS
+
+```{r}
+ggplot() + 
+  geom_line(mapping = aes(x = deltas, y = sqrt(pk_vss), color = "Pocock")) +
+  geom_line(mapping = aes(x = deltas, y = sqrt(of_vss), color = "O'Brien-Fleming")) +
+  geom_line(mapping = aes(x = deltas, y = sqrt(tr_vss), color = "Triangular")) +
+  scale_color_manual(name = "Boundary types",
+                     breaks = c("Pocock", "O'Brien-Fleming", "Triangular"),
+                     values = c("Pocock" = "red", 
+                                "O'Brien-Fleming" = "blue", 
+                                "Triangular" = "purple")) +
+  labs(x = "True \u03B4", y = "Standard deviation of sample size", 
+       title = "Standard deviation of sample size over range of true \u03B4 values")
+```
+
+
+### Power
+
+```{r}
+ggplot() +
+  geom_line(mapping = aes(x = deltas, y = pk_power, color = "Pocock")) + 
+  geom_line(mapping = aes(x = deltas, y = of_power, color = "O'Brien-Fleming")) + 
+  geom_line(mapping = aes(x = deltas, y = tr_power, color = "Triangular")) +
+  scale_color_manual(name = "Boundary types",
+                     breaks = c("Pocock", "O'Brien-Fleming", "Triangular"),
+                     values = c("Pocock" = "red",
+                                "O'Brien-Fleming" = "blue",
+                                "Triangular" = "purple")) +
+  labs(x = "Alternative hypothesis = \u03B4", 
+       y = "Power", 
+       title = "Power for different boundaries")
+```
+
+
+
+
+
+
+
 
 
