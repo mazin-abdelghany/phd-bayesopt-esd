@@ -27,11 +27,9 @@ knitr::opts_chunk$set(echo = TRUE)
 # load required libraries
 library(mvtnorm)
 library(ggplot2)
-library(profvis)
-library(gplite)
 
 # set the seed
-set.seed(20251113)
+set.seed(585883357)
 ```
 
 # GSD simulations
@@ -262,7 +260,74 @@ gsd_simulations <- function(n_analyses = 3,
 }
 ```
 
+### `pocock_bounds_ib()`
+
+Get the bounds using interval bisection.
+
+```{r}
+pocock_bounds_ib <- function(n_analyses = 3,
+                          alpha = 0.05,
+                          n_patients = c(20, 40, 60)) {
+  
+  # the precision of the estimate for alpha
+  epsilon <- 1e-8
+  
+  # starting upper bounds
+  ub1 <- rep(0, length.out = n_analyses)
+  lb1 <- -ub1
+  
+  # starting lower bounds
+  ub2 <- rep(10, length.out = n_analyses)
+  lb2 <- -ub2
+  
+  # first alpha calculation
+  sim <- gsd_simulations(n_analyses = n_analyses,
+                            upper_bounds = ub1,
+                            lower_bounds = lb1,
+                            n_patients = n_patients)
+  
+  while ( abs(sim$alpha - alpha) > epsilon) {
+    
+    # calculate the first midpoint
+    mid_u <- (ub1 + ub2) / 2
+    mid_l <- -mid_u 
+    
+    # calculate the simulated alpha
+    sim <- gsd_simulations(n_analyses = n_analyses,
+                            upper_bounds = mid_u,
+                            lower_bounds = mid_l,
+                            n_patients = n_patients)
+    
+    # 
+    if (sim$alpha > alpha) {
+      
+      ub1 <- mid_u
+      lb1 <- mid_l
+      
+    } else {
+      
+      ub2 <- mid_u
+      lb2 <- mid_l
+      
+    }
+    
+  } 
+  
+  # return the values of interest
+  return( list(upper_bounds = ub1, 
+               lower_bounds = lb1, 
+               simulation = sim) )
+  
+}
+```
+
+```{r, eval=FALSE}
+pocock_bounds_ib()
+```
+
 ### `pocock_bounds()`
+
+Get the bounds with incremental steps.
 
 ```{r}
 pocock_bounds <- function(n_analyses = 3,
@@ -270,76 +335,226 @@ pocock_bounds <- function(n_analyses = 3,
                              n_patients = c(20, 40, 60)) {
   
   # the precision of the estimate for alpha
-  epsilon <- 1e-6
+  epsilon <- 1e-8
   
-  ub1 <- rep(0, length.out = n_analyses)
-  lb1 <- -ub1
+  # close bounds using Bonferroni correction
+  # -qnorm because the value of upper bounds must be positive
+  bounds <- rep(-qnorm(alpha / n_analyses), length.out = n_analyses)
   
-  ub2 <- rep(4, length.out = n_analyses)
-  lb2 <- -ub2
+  # set the upper and lower bounds
+  upper_bounds <- bounds
+  lower_bounds <- -bounds
   
-  sim1 <- gsd_simulations(n_analyses = n_analyses,
-                          upper_bounds = ub1,
-                          lower_bounds = lb1,
-                          n_patients = n_patients)
+  # get alpha
+  sim <- gsd_simulations(n_analyses = n_analyses,
+                         upper_bounds = upper_bounds,
+                         lower_bounds = lower_bounds,
+                         n_patients = n_patients)
   
-  sim2 <- gsd_simulations(n_analyses = n_analyses,
-                          upper_bounds = ub2,
-                          lower_bounds = lb2,
-                          n_patients = n_patients)
-  
-  # which bound value is closer
-  diff1 <- abs(sim1$alpha - alpha)
-  diff2 <- abs(sim2$alpha - alpha)
-  
-  while (diff1 > epsilon) {
+  # while the absolute value of the difference is larger than the precision
+  while(abs(sim$alpha - alpha) >= epsilon) {
     
-    # 2 is closer
-    if (diff1 > diff2) {
+    # if we are above alpha, increase the magnitude of the bounds
+    if( (sim$alpha - alpha) > epsilon) {
       
-      ub1 <- (ub1 + ub2) / 2
-      lb1 <- -ub1
+      bounds <- bounds + abs(sim$alpha - alpha)
+  
+    # if we are below alpha, decrease the magnitude of the bounds
+    } else if ( (sim$alpha - alpha) < epsilon ) {
       
-      # update alpha for the bounds that moved
-      sim1 <- gsd_simulations(n_analyses = n_analyses,
-                            upper_bounds = ub1,
-                            lower_bounds = lb1,
-                            n_patients = n_patients)
-    } 
+      bounds <- bounds - abs(sim$alpha - alpha)
+
+    }
     
-    # 1 is closer
-    if (diff2 > diff1) {
-      
-      ub2 <- (ub1 + ub2) / 2
-      lb2 <- -ub1
-      
-      # update alpha for the bounds that moved
-      sim2 <- gsd_simulations(n_analyses = n_analyses,
-                            upper_bounds = ub2,
-                            lower_bounds = lb2,
-                            n_patients = n_patients)
-    } 
+    # save the new bounds
+    upper_bounds <- bounds
+    lower_bounds <- -bounds
     
-    # which bound value is closer
-    diff1 <- abs(sim1$alpha - alpha)
-    diff2 <- abs(sim2$alpha - alpha)
-    
-    print(diff1)
-    print(diff2)
-    print(ub1)
-    print(ub2)
-    
+    # get the new value of alpha
+    sim <- gsd_simulations(n_analyses = n_analyses,
+                           upper_bounds = upper_bounds,
+                           lower_bounds = lower_bounds,
+                           n_patients = n_patients)
   }
   
   # return the values of interest
-  return( list(upper_bounds = ub1, 
-               lower_bounds = lb1, 
-               simulation = sim1) )
+  return( list(upper_bounds = upper_bounds, 
+               lower_bounds = lower_bounds, 
+               simulation = sim) )
 
 }
 ```
 
-```{r, eval=FALSE}
-pocock_bounds()
+
+### Which Pocock calculation is faster?
+
+```{r}
+bench::mark(
+  pocock_bounds(),
+  pocock_bounds_ib(),
+  check = FALSE
+)
 ```
+
+Interval bisection is faster.
+
+### `ob_bounds_ib()`
+
+Get O'Brien-Fleming bounds with interval bisection.
+
+```{r}
+ob_bounds_ib <- function(n_analyses = 3,
+                          alpha = 0.05,
+                          n_patients = c(20, 40, 60)) {
+  
+  # the precision of the estimate for alpha
+  epsilon <- 1e-8
+  
+  # starting upper bounds
+  ub1 <- rep(0, length.out = n_analyses)
+  lb1 <- -ub1
+  
+  # starting lower bounds
+  ub2 <- rep(10, length.out = n_analyses)
+  lb2 <- -ub2
+  
+  # ob bounds
+  ob_u1 <- ub1 * (1:n_analyses / n_analyses)^-0.5
+  ob_l1 <- -ob_u1
+  
+  ob_u2 <- ub2 * (1:n_analyses / n_analyses)^-0.5
+  ob_l2 <- -ob_u2
+  
+  # first alpha calculation
+  sim <- gsd_simulations(n_analyses = n_analyses,
+                            upper_bounds = ob_u1,
+                            lower_bounds = ob_l1,
+                            n_patients = n_patients)
+  
+  while ( abs(sim$alpha - alpha) > epsilon) {
+    
+    # calculate the first midpoint
+    mid_u <- (ub1 + ub2) / 2
+    mid_l <- -mid_u 
+    
+    # get ob bounds
+    mid_ob_u <- mid_u * (1:n_analyses / n_analyses)^-0.5
+    mid_ob_l <- -mid_ob_u
+    
+    # calculate the simulated alpha
+    sim <- gsd_simulations(n_analyses = n_analyses,
+                            upper_bounds = mid_ob_u,
+                            lower_bounds = mid_ob_l,
+                            n_patients = n_patients)
+    
+    # 
+    if (sim$alpha > alpha) {
+      
+      ub1 <- mid_u
+      lb1 <- mid_l
+      
+    } else {
+      
+      ub2 <- mid_u
+      lb2 <- mid_l
+      
+    }
+    
+  } 
+  
+  # return the values of interest
+  return( list(upper_bounds = mid_ob_u, 
+               lower_bounds = mid_ob_l, 
+               simulation = sim) )
+  
+}
+```
+
+```{r, eval=FALSE}
+ob_bounds_ib()
+```
+
+### `ob_bounds()`
+
+Get O'Brien-Fleming bounds with incremental steps.
+
+```{r}
+ob_bounds <-  function(n_analyses = 3,
+                       alpha = 0.05,
+                       n_patients = c(20, 40, 60)) {
+  
+  # the precision of the estimate for alpha
+  epsilon <- 1e-8
+  
+  # close bounds using Bonferroni correction
+  # -qnorm because the value of upper bounds must be positive
+  bounds <- rep(-qnorm(alpha / n_analyses), length.out = n_analyses)
+  
+  # modify the bounds using OF multiple
+  of_bounds <- bounds * (1:n_analyses / n_analyses)^-0.5
+  
+  # set the upper and lower bounds
+  upper_bounds <- of_bounds
+  lower_bounds <- -of_bounds
+  
+  # get alpha
+  sim <- gsd_simulations(n_analyses = n_analyses,
+                         upper_bounds = upper_bounds,
+                         lower_bounds = lower_bounds,
+                         n_patients = n_patients)
+  
+  # while the absolute value of the difference is larger than the precision
+  while(abs(sim$alpha - alpha) >= epsilon) {
+    
+    # if we are above alpha, increase the magnitude of the bounds
+    if( (sim$alpha - alpha) > epsilon) {
+      
+      bounds <- bounds + abs(sim$alpha - alpha)
+  
+    # if we are below alpha, decrease the magnitude of the bounds
+    } else if ( (sim$alpha - alpha) < epsilon ) {
+      
+      bounds <- bounds - abs(sim$alpha - alpha)
+
+    }
+    
+    # modify the bounds using OF multiple
+    of_bounds <- bounds * (1:n_analyses / n_analyses)^-0.5
+    
+    # save the new bounds
+    upper_bounds <- of_bounds
+    lower_bounds <- -of_bounds
+    
+    # get the new value of alpha
+    sim <- gsd_simulations(n_analyses = n_analyses,
+                           upper_bounds = upper_bounds,
+                           lower_bounds = lower_bounds,
+                           n_patients = n_patients)
+  }
+  
+  # return the values of interest
+  return( list(upper_bounds = upper_bounds, 
+               lower_bounds = lower_bounds, 
+               simulation = sim) )
+
+  
+}
+```
+
+```{r}
+ob_bounds()
+```
+
+### Which O'Brien-Fleming calculation is faster?
+
+```{r}
+bench::mark(
+  ob_bounds(),
+  ob_bounds_ib(),
+  check = FALSE
+)
+```
+
+## Correct the bounds
+
 
