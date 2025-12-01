@@ -1,0 +1,437 @@
+---
+title: "Gaussian Processes for Global Optimization"
+subtitle: "by Michael A. Osborne, Roman Garnett, and Stephen J. Roberts"
+author: "Mazin Abdelghany, MD, MS"
+date: "`r Sys.Date()`"
+output: 
+  ioslides_presentation:
+    transition: 0
+widescreen: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(ggplot2)
+library(mvtnorm)
+library(gplite)
+library(gridExtra)
+
+set.seed(2025721)
+```
+
+
+# Section 1: Motivation
+
+## Non-linear regression
+
+- Given $n$ data points $\{x_i, y_i\}_{i=1}^n$
+
+```{r}
+x <- seq(from = 0, to = 2*pi + 0.2, length.out = 50)
+y <- sin(x) 
+
+
+ggplot() +
+  geom_point(mapping = aes(x = x[c(2, 10, 14, 33, 45)], y = y[c(2,10,14,33, 45)]), 
+             color = "purple",
+             size = 2.5) +
+  labs(
+    title = "Nonlinear function",
+    x = expression(x),
+    y = expression(y)
+  ) + 
+  theme_bw()
+```
+
+## Non-linear regression
+
+- Given $n$ data points $\{x_i, y_i\}_{i=1}^n$
+- Predict $(x_{\texttt{new}}, y_{\texttt{new}})$
+
+```{r}
+x <- seq(from = 0, to = 2*pi + 0.2, length.out = 50)
+y <- sin(x) 
+
+
+ggplot() +
+  geom_point(mapping = aes(x = x[c(2, 10, 14, 33, 45)], y = y[c(2,10,14,33, 45)]), 
+             color = "purple",
+             size = 2.5) +
+  geom_linerange(aes(x = 3, ymin = -0.5, ymax = 0.5)) +
+  geom_label(aes(x = 3, y = 0, label = "?")) +
+  labs(
+    title = "Nonlinear function",
+    x = expression(x),
+    y = expression(y)
+  ) + 
+  theme_bw()
+```
+
+## Non-linear regression
+
+```{r}
+x <- seq(from = 0, to = 2*pi + 0.2, length.out = 50)
+y <- sin(x) 
+
+x2 <- seq(from = 0, to = 2*pi + 0.2, length.out = 500)
+y2 <- sin(x2) 
+
+gp <- gp_init(  
+  # A squared exponential (aka Gaussian aka RBF) kernel
+  cfs = cf_sexp(),  
+  
+  # Assume Gaussian distributed errors
+  lik = lik_gaussian(), 
+  
+  # Use the full covariance (i.e., do not approximate)
+  method = method_full() )
+
+fit <- gp_optim(gp, x = x[c(2, 10, 14, 33, 45)], y = y[c(2,10,14,33, 45)],
+                verbose = FALSE)
+
+preds <- gp_pred(fit, xnew = x2, var = TRUE)
+
+mean <- preds$mean
+var <- preds$var
+
+ggplot() +
+  geom_line(aes(x = x2, y = mean), color = "darkorange", linewidth = 1) +
+  geom_ribbon(aes(x = x2, ymin = mean+10*var, ymax = mean-10*var), 
+              fill = "darkorange",
+              alpha = 0.3) +
+  geom_point(mapping = aes(x = x[c(2, 10, 14, 33, 45)], y = y[c(2,10,14,33, 45)]), 
+             color = "purple",
+             size = 2.5) +
+  labs(
+    title = "Nonlinear function",
+    x = expression(x),
+    y = expression(y)
+  ) + 
+  theme_bw()
+```
+
+<div class="centered blue">
+<b> Can all be done with Gaussian distributions! </b>
+</div>
+
+## Review of the Multivariate Normal (MVN) in 2-d
+
+If we have a vector of random variables $\mathbf{x}$ and 
+
+$$ 
+\mathbf{x} \sim \mathcal{N}_d(\boldsymbol{\mu}, \mathbf{\Sigma}) 
+$$
+
+then, the joint probability mass of $\mathbf{x}$ is given by the multivariate normal:
+
+$$
+p\left( \mathbf{x} \,|\, \boldsymbol{\mu}, \mathbf{\Sigma}
+\right) \propto \exp \left\{ -\frac{1}{2} (\mathbf{x}-\boldsymbol{\mu})^\top \Sigma^{-1} (\mathbf{x}-\boldsymbol{\mu}) \right\}
+$$
+
+## Review of the Multivariate Normal (MVN) in 2-d
+
+A two-dimensional MVN with $\boldsymbol{\mu}=[0,0]$ and $\Sigma=\begin{bmatrix} 1 & 0.7\\ 0.7 & 1 \end{bmatrix}$:
+
+```{r, echo=TRUE}
+# mean vector
+mu <- c(0, 0)
+
+# covariance matrix
+Sigma <- matrix( c(1, 0.7, 
+                   0.7, 1), nrow = 2) 
+
+# grid of x1 and x2 values
+x1x2_grid <- expand.grid(x1 = seq(-3, 3, length.out = 100), 
+                         x2 = seq(-3, 3, length.out = 100))
+
+# probability contours
+probabilities <- dmvnorm(x1x2_grid, mean = mu, sigma = Sigma)
+```
+
+## Review of the Multivariate Normal (MVN) in 2-d
+
+Probability contour plot:
+
+```{r}
+ggplot() +
+  geom_contour(aes(x = x1x2_grid$x1, y = x1x2_grid$x2, z = probabilities),
+               bins = 4, color = "purple", linewidth = 0.8) +
+  labs(
+    title = "Equal probability contours for MVN",
+    x = expression(x[1]),
+    y = expression(x[2])
+  ) +
+  theme_bw()
+```
+
+
+## Review of the Multivariate Normal (MVN) in 2-d
+
+Probability contour plot:
+
+```{r}
+rand_mvn <- rmvnorm(10, mean = mu, sigma = Sigma)
+
+ggplot() +
+  geom_contour(aes(x = x1x2_grid$x1, y = x1x2_grid$x2, z = probabilities),
+               bins = 4, color = "purple", linewidth = 0.8) +
+  geom_point(aes(x = rand_mvn[,1], y = rand_mvn[,2])) +
+  labs(
+    title = "Equal probability contours for MVN",
+    x = expression(x[1]),
+    y = expression(x[2])
+  ) +
+  theme_bw()
+```
+
+
+
+
+## Conditioning of the MVN in 2-d
+
+We can condition on one of the variables, $p(x_2 \,|\, x_1,\,\Sigma)$
+
+```{r}
+mu_cond <- mu[1] + 0.7*(0.7)
+Sigma_cond <- 1 - (0.7 *  1 * 0.7)
+
+rand_cond <- rnorm(20, mean = mu_cond, sd = sqrt(Sigma_cond))
+
+ggplot() +
+  geom_contour(aes(x = x1x2_grid$x1, y = x1x2_grid$x2, z = probabilities),
+               bins = 4, color = "purple", linewidth = 0.8) +
+  geom_vline(aes(xintercept = 0.5)) +
+  geom_point(aes(x = 0.5, y = rand_cond)) +
+  labs(
+    title = "Equal probability contours",
+    x = expression(x[1]),
+    y = expression(x[2])
+  ) +
+  theme_bw()
+```
+
+
+# Section 2: Gaussian Processes
+
+```{r}
+spaghetti_plot <- function() {
+  
+  rand_mvn <- rmvnorm(1, mean = mu, sigma = Sigma)
+
+  p1 <- ggplot() +
+    geom_contour(aes(x = x1x2_grid$x1, y = x1x2_grid$x2, z = probabilities),
+                 bins = 4, color = "purple", linewidth = 0.8) +
+    geom_point(aes(x = rand_mvn[,1], y = rand_mvn[,2])) +
+    xlim(c(-3,3)) +
+    ylim(c(-3,3)) +
+    labs(
+      title = "Equal probability contours for MVN",
+      x = expression(x[1]),
+      y = expression(x[2])
+    ) +
+    theme_bw()
+
+  p2 <- ggplot() +
+    geom_point(aes(x = 1:dim(rand_mvn)[2], y = c(rand_mvn))) +
+    geom_line(aes(x = 1:dim(rand_mvn)[2], y = c(rand_mvn))) +
+    ylim(c(-3,3)) +
+    scale_x_continuous(breaks=1:dim(rand_mvn)[2]) +
+    labs(
+      title = "2-d representation",
+      x = "Variable index",
+      y = expression(x)
+    ) +
+    theme_bw()
+
+  return(list(p1, p2))
+}
+```
+
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot()
+grid.arrange(plot[[1]], plot[[2]], nrow = 1)
+```
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot()
+grid.arrange(plot[[1]], plot[[2]], nrow = 1)
+```
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot()
+grid.arrange(plot[[1]], plot[[2]], nrow = 1)
+```
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot()
+grid.arrange(plot[[1]], plot[[2]], nrow = 1)
+```
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot()
+grid.arrange(plot[[1]], plot[[2]], nrow = 1)
+```
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot()
+grid.arrange(plot[[1]], plot[[2]], nrow = 1)
+```
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot()
+grid.arrange(plot[[1]], plot[[2]], nrow = 1)
+```
+
+## MVN in mulitple dimentions
+
+```{r}
+# square exponential covariance function
+se_kernel <- function(n = 10) {
+  exp(-as.matrix(dist(1:n))^2/10) + diag(sqrt(.Machine$double.eps), n)
+}
+```
+
+
+```{r}
+spaghetti_plot_dim <- function(n = 10) {
+  
+  rand_mvn <- rmvnorm(1, mean = rep(0, n), sigma = se_kernel(n = n))
+
+  p1 <- ggplot() +
+    geom_contour(aes(x = x1x2_grid$x1, y = x1x2_grid$x2, z = probabilities),
+                 bins = 4, color = "purple", linewidth = 0.8) +
+    geom_point(aes(x = rand_mvn[,1], y = rand_mvn[,2])) +
+    xlim(c(-3,3)) +
+    ylim(c(-3,3)) +
+    labs(
+      title = "Equal probability contours for MVN",
+      x = expression(x[1]),
+      y = expression(x[2])
+    ) +
+    theme_bw()
+
+  p2 <- ggplot() +
+    geom_point(aes(x = 1:dim(rand_mvn)[2], y = c(rand_mvn))) +
+    geom_line(aes(x = 1:dim(rand_mvn)[2], y = c(rand_mvn))) +
+    ylim(c(-3,3)) +
+    scale_x_continuous(breaks=1:dim(rand_mvn)[2]) +
+    labs(
+      title = "10-d representation",
+      x = "Variable index",
+      y = expression(x)
+    ) +
+    theme_bw()
+
+  return(list(p1, p2))
+}
+```
+
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot_dim()
+grid.arrange(plot[[1]], plot[[2]], nrow = 1)
+```
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot_dim()
+grid.arrange(plot[[1]], plot[[2]], nrow = 1)
+```
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot_dim()
+grid.arrange(plot[[1]], plot[[2]], nrow = 1)
+```
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot_dim()
+grid.arrange(plot[[1]], plot[[2]], nrow = 1)
+```
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot_dim(20)
+grid.arrange(plot[[1]], plot[[2]]+labs(title = "20-d representation"), nrow = 1)
+```
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot_dim(20)
+grid.arrange(plot[[1]], plot[[2]]+labs(title = "20-d representation"), nrow = 1)
+```
+
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot_dim(20)
+grid.arrange(plot[[1]], plot[[2]]+labs(title = "20-d representation"), nrow = 1)
+```
+
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot_dim(20)
+grid.arrange(plot[[1]], plot[[2]]+labs(title = "20-d representation"), nrow = 1)
+```
+
+
+- analytic expression for expected loss of evaluating y(x) under limited myopic approximation
+- consider multiple function evaluations into the future
+- Bayesian formalism allows estimation of confidence
+- Gaussian process allows incorporation of prior information
+- Learning from observations of derivative
+- Resolution of conditioning issues
+
+
+
+## Mean and covariance functions
+
+## Generating functions using covariance
+
+## Formal definition of Gaussian Processes (GPs)
+
+
+
+
+# Section 3: Optimization using Gaussian Processes
+
+
+
+## Slide with R Output
+
+```{r cars, echo = TRUE}
+summary(cars)
+```
+
+## Slide with Plot
+
+```{r pressure}
+plot(pressure)
+```
+
