@@ -3,17 +3,14 @@ FROM rocker/rstudio:latest
 
 # install posterior, tidybayes, ggdist, and loo
 RUN install2.r --error \
-     posterior \
-     tidybayes \
-     ggdist \
-     loo \
      gplite \
      mvtnorm \
      plotly \
      bench \
      rpact \
      profvis \
-     tictoc
+     tictoc \
+     gridExtra
 
 ## install RStan
 # RUN Rscript -e 'Sys.setenv(DOWNLOAD_STATIC_LIBV8 = 1)'
