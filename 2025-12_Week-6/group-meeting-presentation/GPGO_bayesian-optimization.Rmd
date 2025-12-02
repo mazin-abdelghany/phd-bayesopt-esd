@@ -17,6 +17,7 @@ library(mvtnorm)
 library(gplite)
 library(gridExtra)
 library(plgp)
+library(data.table)
 
 set.seed(5467)
 ```
@@ -643,7 +644,7 @@ In a simple example, imagine we are given two data points $\{(x_1, y_1); (x_2, y
 - We need to predict the function thereafter
 
 ```{r}
-new_predictions <- function() {
+new_predictions <- function(n_preds = 1) {
   # equations for conditional mean vector and covariance matrix
   # mu1|2 = mu1 + S12 * S22_inverse * (x2 - mu2)
   # S1|2  = S11 - S12  * S22_inverse * S21
@@ -655,7 +656,7 @@ new_predictions <- function() {
   y <- c(0.9, 0.64, 0.1)
   
   # x pairs to predict new y
-  x1 <- c(4:20)
+  x1 <- c(1:20)
   
   # self-distance between the given x values
   distance22 <- plgp::distance(x2)
@@ -679,18 +680,18 @@ new_predictions <- function() {
   # note that mu1 and mu2 are set at 0, so do not enter in to the
   # below equations
   S22inv <- solve(S22)
-  mu1given2 <- SX %*% S22inv %*% y
-  S1given2 <- (S11 - S12 %*% S22inv %*% t(SX)) 
+  mu1given2 <- S12 %*% S22inv %*% y
+  S1given2 <- (S11 - S12 %*% S22inv %*% t(S12)) 
   
   # predict a single vector of new points
-  new_ys <- rmvnorm(1, mean = mu1given2, sigma = S1given2)
+  new_ys <- rmvnorm(n_preds, mean = mu1given2, sigma = S1given2)
   
   return(new_ys)
 }
 ```
 
 ```{r}
-plot_new_predictions <- function(x = new_predictions) {
+plot_new_predictions <- function(x = new_predictions()) {
   y <- c(0.9, 0.64, 0.1)
   p1 <- ggplot() +
     geom_contour(aes(x = x1x2_grid$x1, y = x1x2_grid$x2, z = probabilities),
@@ -704,10 +705,10 @@ plot_new_predictions <- function(x = new_predictions) {
       y = expression(x[2])
     ) +
     theme_bw()
-
+  
   p2 <- ggplot() +
-    geom_point(aes(x = 1:20, y = c(y, x))) +
-    geom_line(aes(x = 1:20, y = c(y, x))) +
+    geom_point(aes(x = 1:20, y = as.vector(x))) +
+    geom_line(aes(x = 1:20, y = as.vector(x))) +
     geom_point(aes(x = 1:3), y = y, color = "purple") +
     ylim(c(-3,3)) +
     scale_x_continuous(breaks=1:20) +
@@ -725,7 +726,7 @@ plot_new_predictions <- function(x = new_predictions) {
 
 
 ```{r, warning=FALSE}
-plot <- plot_new_predictions(new_predictions())
+plot <- plot_new_predictions()
 grid.arrange(
   plot[[1]], plot[[2]],
   nrow = 1
@@ -858,12 +859,166 @@ $$
 
 With an involved proof:
 
-- Predictive mean: $\boldsymbol{\mu}_{\mathbf{y}_1|\mathbf{y}_2} = \boldsymbol{\mu_1} + \mathbf{\Sigma}_{12}\mathbf{\Sigma}_{22}^{-1}(\mathbf{y}_2-\boldsymbol{\mu}_2)$
-- Predictive variance: $\mathbf{\Sigma}_{\mathbf{y}_1|\mathbf{y}_2} = \mathbf{\Sigma}_{11} - \mathbf{\Sigma}_{12}\mathbf{\Sigma}_{22}^{-1}\mathbf{\Sigma}_{21}$
+- Predictive mean (linear projection in inverse distance space): $\boldsymbol{\mu}_{\mathbf{y}_1|\mathbf{y}_2} = \boldsymbol{\mu_1} + \mathbf{\Sigma}_{12}\mathbf{\Sigma}_{22}^{-1}(\mathbf{y}_2-\boldsymbol{\mu}_2)$
+- Predictive variance (quadratic reduction in variance): $\mathbf{\Sigma}_{\mathbf{y}_1|\mathbf{y}_2} = \mathbf{\Sigma}_{11} - \mathbf{\Sigma}_{12}\mathbf{\Sigma}_{22}^{-1}\mathbf{\Sigma}_{21}$
 
+## Final visualization: Initial conditions
+
+```{r}
+# Setup variables
+
+# given (x, y) pairs
+x2 <- 1:3
+y <- c(0.9, 0.64, 0.1)
+
+# x pairs to predict new y
+x1 <- c(4:20)
+```
+
+
+```{r, warning=FALSE}
+# initial condition plot
+ggplot() +
+  geom_point(aes(x = x2, y = y), color = "purple") +
+  ylim(c(-3, 3)) +
+  scale_x_continuous(limits = c(1, 20), breaks=1:20) +
+  labs(
+    x = expression(x),
+    y = expression (y),
+    title = "Initial conditions"
+  ) +
+  theme_bw()
+```
+
+
+```{r}
+# generate many predictions 
+many_preds <- new_predictions(n_preds = 100)
+mean_preds <- colMeans(many_preds)
+
+# prepare data for plotting
+dt_preds <- setDT(as.data.frame(many_preds))
+dt_preds <- transpose(dt_preds)
+plot_lines <- melt(dt_preds)
+plot_lines$x <- rep(1:20, 100)
+```
+
+## Final visualization: Mean prediction
+
+
+```{r, warning=FALSE}
+ggplot() +
+  geom_line(aes(x = 1:20, y = mean_preds)) +
+  geom_point(aes(x = 1:20, y = mean_preds)) +
+  geom_point(aes(x = x2, y = y), color = "purple") +
+  ylim(c(-3, 3)) +
+  scale_x_continuous(limits = c(1, 20), breaks=1:20) +
+  scale_color_manual(values = rep("grey", 100)) +
+  labs(
+    x = expression(x),
+    y = expression (y),
+    title = "Mean prediction"
+  ) +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+
+## Final visualization: Mean prediction with 100 individual predictions
+
+
+```{r, warning=FALSE}
+ggplot() +
+  geom_line(data = plot_lines, aes(x = x, y = value, color = variable, alpha = 0.3)) +
+  geom_line(aes(x = 1:20, y = mean_preds)) +
+  geom_point(aes(x = 1:20, y = mean_preds)) +
+  geom_point(aes(x = x2, y = y), color = "purple") +
+  ylim(c(-3, 3)) +
+  scale_x_continuous(limits = c(1, 20), breaks=1:20) +
+  scale_color_manual(values = rep("grey", 100)) +
+  labs(
+    x = expression(x),
+    y = expression (y),
+    title = "Mean prediction with with 100 individual predictions"
+  ) +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+
+## Final visualization: Add a far away point
+
+```{r, warning=FALSE}
+# given (x, y) pairs
+x2 <- c(1:3, 12)
+y <- c(0.9, 0.64, 0.1, 1)
+
+# x pairs to predict new y
+x1 <- c(1:20)
+
+# self-distance between the given x values
+distance22 <- plgp::distance(x2)
+
+# squared exponential kernel implementation
+S22 <- exp(-distance22/10) 
+
+# self-distance between the new x values
+distance11 <- plgp::distance(x1)
+
+# squared exponential kernel implementation
+S11 <- exp(-distance11/10)
+
+# distance between old and new x values
+distance12 <- plgp::distance(x1, x2)
+
+# squared exponential kernel implementation
+S12 <- exp(-distance12/10)
+
+# generate new mean vector and covariance matrix
+# note that mu1 and mu2 are set at 0, so do not enter in to the
+# below equations
+S22inv <- solve(S22)
+mu1given2 <- S12 %*% S22inv %*% y
+S1given2 <- (S11 - S12 %*% S22inv %*% t(S12)) 
+
+# predict a single vector of new points
+new_ys <- rmvnorm(100, mean = mu1given2, sigma = S1given2)
+
+# mean preditions
+mean_preds <- colMeans(new_ys)
+
+# plot error bars
+# quantiles of the marginal variance (which is along the diagonal)
+upper <- mu1given2 + qnorm(0.05, 0, sqrt(abs(diag(S1given2))))
+lower <- mu1given2 - qnorm(0.05, 0, sqrt(abs(diag(S1given2))))
+
+# prepare data for plotting
+dt_preds <- setDT(as.data.frame(new_ys))
+dt_preds <- transpose(dt_preds)
+plot_lines <- melt(dt_preds)
+plot_lines$x <- rep(1:20, 100)
+```
+
+```{r, warning=FALSE}
+ggplot() +
+  geom_line(data = plot_lines, aes(x = x, y = value, color = variable, alpha = 0.3)) +
+  geom_ribbon(aes(x = 1:20, ymin = lower, ymax = upper), fill = "red", alpha = 0.2) +
+  geom_line(aes(x = 1:20, y = mean_preds)) +
+  geom_point(aes(x = 1:20, y = mean_preds)) +
+  geom_point(aes(x = x2, y = y), color = "purple") +
+  ylim(c(-3, 3)) +
+  scale_x_continuous(limits = c(1, 20), breaks=1:20) +
+  scale_color_manual(values = rep("grey", 100)) +
+  labs(
+    x = expression(x),
+    y = expression (y),
+    title = "New point, mean prediction + variance, 100 individual predictions"
+  ) +
+  theme_bw() +
+  theme(legend.position = "none")
+```
 
 
 # Optimization using Gaussian Processes
+
 
 
 ## An expensive function to optimize
