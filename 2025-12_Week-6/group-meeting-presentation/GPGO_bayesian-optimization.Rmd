@@ -17,11 +17,13 @@ library(mvtnorm)
 library(gplite)
 library(gridExtra)
 
-set.seed(2025721)
+install.packages("plgp")
+
+set.seed(5467)
 ```
 
 
-# Section 1: Motivation
+# Motivation
 
 ## Non-linear regression
 
@@ -167,7 +169,7 @@ ggplot() +
 ```
 
 
-## Review of the Multivariate Normal (MVN) in 2-d
+## Review of the Multivariate Normal (MVN) in 2-d 
 
 Probability contour plot:
 
@@ -185,8 +187,6 @@ ggplot() +
   ) +
   theme_bw()
 ```
-
-
 
 
 ## Conditioning of the MVN in 2-d
@@ -213,7 +213,7 @@ ggplot() +
 ```
 
 
-# Section 2: Gaussian Processes
+# Gaussian Processes
 
 ```{r}
 spaghetti_plot <- function() {
@@ -252,54 +252,153 @@ spaghetti_plot <- function() {
 
 ## MVN in mulitple dimentions
 
-```{r, warning=FALSE}
-plot <- spaghetti_plot()
-grid.arrange(plot[[1]], plot[[2]], nrow = 1)
-```
-
-## MVN in mulitple dimentions
+<div style="float: left; width: 75%;">
 
 ```{r, warning=FALSE}
 plot <- spaghetti_plot()
 grid.arrange(plot[[1]], plot[[2]], nrow = 1)
 ```
 
+</div>
+
+<div style="float: right; width: 25%;">
+
+$$
+\mathbf{\Sigma} = \begin{bmatrix}
+1 & 0.7\\
+0.7 & 1
+\end{bmatrix}
+$$
+</div>
+
+
 ## MVN in mulitple dimentions
+
+<div style="float: left; width: 75%;">
 
 ```{r, warning=FALSE}
 plot <- spaghetti_plot()
 grid.arrange(plot[[1]], plot[[2]], nrow = 1)
 ```
 
+</div>
+
+<div style="float: right; width: 25%;">
+
+$$
+\mathbf{\Sigma} = \begin{bmatrix}
+1 & 0.7\\
+0.7 & 1
+\end{bmatrix}
+$$
+</div>
+
 ## MVN in mulitple dimentions
+
+<div style="float: left; width: 75%;">
 
 ```{r, warning=FALSE}
 plot <- spaghetti_plot()
 grid.arrange(plot[[1]], plot[[2]], nrow = 1)
 ```
 
+</div>
+
+<div style="float: right; width: 25%;">
+
+$$
+\mathbf{\Sigma} = \begin{bmatrix}
+1 & 0.7\\
+0.7 & 1
+\end{bmatrix}
+$$
+</div>
+
 ## MVN in mulitple dimentions
+
+<div style="float: left; width: 75%;">
 
 ```{r, warning=FALSE}
 plot <- spaghetti_plot()
 grid.arrange(plot[[1]], plot[[2]], nrow = 1)
 ```
 
+</div>
+
+<div style="float: right; width: 25%;">
+
+$$
+\mathbf{\Sigma} = \begin{bmatrix}
+1 & 0.7\\
+0.7 & 1
+\end{bmatrix}
+$$
+</div>
+
 ## MVN in mulitple dimentions
+
+<div style="float: left; width: 75%;">
 
 ```{r, warning=FALSE}
 plot <- spaghetti_plot()
 grid.arrange(plot[[1]], plot[[2]], nrow = 1)
 ```
 
+</div>
+
+<div style="float: right; width: 25%;">
+
+$$
+\mathbf{\Sigma} = \begin{bmatrix}
+1 & 0.7\\
+0.7 & 1
+\end{bmatrix}
+$$
+</div>
+
 ## MVN in mulitple dimentions
+
+<div style="float: left; width: 75%;">
 
 ```{r, warning=FALSE}
 plot <- spaghetti_plot()
 grid.arrange(plot[[1]], plot[[2]], nrow = 1)
 ```
 
+</div>
+
+<div style="float: right; width: 25%;">
+
+$$
+\mathbf{\Sigma} = \begin{bmatrix}
+1 & 0.7\\
+0.7 & 1
+\end{bmatrix}
+$$
+</div>
+
 ## MVN in mulitple dimentions
+
+<div style="float: left; width: 75%;">
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot()
+grid.arrange(plot[[1]], plot[[2]], nrow = 1)
+```
+
+</div>
+
+<div style="float: right; width: 25%;">
+
+$$
+\mathbf{\Sigma} = \begin{bmatrix}
+1 & 0.7\\
+0.7 & 1
+\end{bmatrix}
+$$
+</div>
+
+## $\Sigma$ matrix in 10 dimensions
 
 ```{r}
 # square exponential covariance function
@@ -343,6 +442,81 @@ spaghetti_plot_dim <- function(n = 10) {
 }
 ```
 
+<div style="float: left; width: 40%;">
+<font size="2">
+$$
+\mathbf{\Sigma} = 
+\begin{bmatrix}
+1.00 & 0.90 & 0.67 & 0.41 & 0.20 & 0.08 & 0.03 & 0.01 & 0.00 & 0.00 \\
+0.90 & 1.00 & 0.90 & 0.67 & 0.41 & 0.20 & 0.08 & 0.03 & 0.01 & 0.00 \\
+0.67 & 0.90 & 1.00 & 0.90 & 0.67 & 0.41 & 0.20 & 0.08 & 0.03 & 0.01 \\
+0.41 & 0.67 & 0.90 & 1.00 & 0.90 & 0.67 & 0.41 & 0.20 & 0.08 & 0.03 \\
+0.20 & 0.41 & 0.67 & 0.90 & 1.00 & 0.90 & 0.67 & 0.41 & 0.20 & 0.08 \\
+0.08 & 0.20 & 0.41 & 0.67 & 0.90 & 1.00 & 0.90 & 0.67 & 0.41 & 0.20 \\
+0.03 & 0.08 & 0.20 & 0.41 & 0.67 & 0.90 & 1.00 & 0.90 & 0.67 & 0.41 \\
+0.01 & 0.03 & 0.08 & 0.20 & 0.41 & 0.67 & 0.90 & 1.00 & 0.90 & 0.67 \\
+0.00 & 0.01 & 0.03 & 0.08 & 0.20 & 0.41 & 0.67 & 0.90 & 1.00 & 0.90 \\
+0.00 & 0.00 & 0.01 & 0.03 & 0.08 & 0.20 & 0.41 & 0.67 & 0.90 & 1.00
+\end{bmatrix}
+$$
+</font>
+</div>
+
+<div style="float: right; width: 60%;">
+
+```{r}
+data <- expand.grid(x = 1:10, y = 10:1)
+data$corr <- as.vector(se_kernel())
+p3 <- ggplot(data) +
+  geom_tile(aes(x = x, y = y, fill = corr)) + 
+  scale_fill_distiller(palette = "PuOr") +
+  theme_void() +
+  labs(
+    title = "Correlation matrix"
+  ) +
+  coord_fixed(ratio = 1)
+
+p3
+```
+
+</div>
+
+## MVN in mulitple dimentions
+
+<div style="float: left; width: 60%; position:relative">
+
+```{r, warning=FALSE, out.width=600}
+plot <- spaghetti_plot_dim()
+grid.arrange(plot[[1]], plot[[2]], nrow = 1)
+```
+
+</div>
+
+<div style="float: left; width: 40%;">
+
+```{r, out.width=500}
+p3
+```
+
+</div>
+
+
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot_dim()
+grid.arrange(plot[[1]], plot[[2]], nrow = 1)
+```
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot_dim()
+grid.arrange(plot[[1]], plot[[2]], nrow = 1)
+```
+
+## MVN in mulitple dimentions
 
 ```{r, warning=FALSE}
 plot <- spaghetti_plot_dim()
@@ -369,6 +543,62 @@ grid.arrange(plot[[1]], plot[[2]], nrow = 1)
 plot <- spaghetti_plot_dim()
 grid.arrange(plot[[1]], plot[[2]], nrow = 1)
 ```
+
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot_dim()
+grid.arrange(plot[[1]], plot[[2]], nrow = 1)
+```
+
+
+## MVN in mulitple dimentions
+
+<div style="float: left; width: 60%; position:relative">
+
+```{r, warning=FALSE, out.width=600}
+plot <- spaghetti_plot_dim(20)
+grid.arrange(plot[[1]], plot[[2]]+labs(title = "20-d representation"), nrow = 1)
+```
+
+</div>
+
+<div style="float: left; width: 40%;">
+
+```{r, out.width=500}
+data <- expand.grid(x = 1:20, y = 20:1)
+data$corr <- as.vector(se_kernel(20))
+
+p4 <- ggplot(data) +
+  geom_tile(aes(x = x, y = y, fill = corr)) + 
+  scale_fill_distiller(palette = "PuOr") +
+  theme_void() +
+  labs(
+    title = "Correlation matrix"
+  ) +
+  coord_fixed(ratio = 1)
+
+p4
+```
+
+</div>
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot_dim(20)
+grid.arrange(plot[[1]], plot[[2]]+labs(title = "20-d representation"), nrow = 1)
+```
+
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot_dim(20)
+grid.arrange(plot[[1]], plot[[2]]+labs(title = "20-d representation"), nrow = 1)
+```
+
 
 ## MVN in mulitple dimentions
 
@@ -400,6 +630,230 @@ plot <- spaghetti_plot_dim(20)
 grid.arrange(plot[[1]], plot[[2]]+labs(title = "20-d representation"), nrow = 1)
 ```
 
+
+## MVN in mulitple dimentions
+
+```{r, warning=FALSE}
+plot <- spaghetti_plot_dim(20)
+grid.arrange(plot[[1]], plot[[2]]+labs(title = "20-d representation"), nrow = 1)
+```
+
+## Fixing points with the conditional distribution
+
+In a simple example, imagine we are given two data points $\{(x_1, y_1); (x_2, y_2)\}$.
+- We need to predict the function thereafter
+
+```{r}
+new_predictions <- function() {
+  # u1|2 = mu1 + S12 S22inv (x2 - mu2)
+  # S1|2 = S11 - S12 S22inv S21
+  
+  # given values
+  x2 <- 1:3
+  y <- c(0.9, 0.64, 0.1)
+  
+  # x to predict
+  x1 <- c(4:20)
+  
+  # known covariance from given values
+  D <- plgp::distance(x2)
+  Sigma <- exp(-D/10) 
+  
+  # generated from kernel function 
+  DXX <- plgp::distance(x1)
+  SXX <- exp(-DXX/10)
+  
+  DX <- plgp::distance(x1, x2)
+  SX <- exp(-DX/10)
+  
+  Si <- solve(Sigma)
+  mup <- SX %*% Si %*% y
+  Sigmap <- (SXX - SX %*% Si %*% t(SX)) 
+  
+  new_xs <- rmvnorm(1, mean = mup, sigma = Sigmap)
+  
+  return(new_xs)
+}
+```
+
+```{r}
+plot_new_predictions <- function(x = new_predictions) {
+  y <- c(0.9, 0.64, 0.1)
+  p1 <- ggplot() +
+    geom_contour(aes(x = x1x2_grid$x1, y = x1x2_grid$x2, z = probabilities),
+                 bins = 4, color = "purple", linewidth = 0.8) +
+    geom_point(aes(x = y[1], y = y[2])) +
+    xlim(c(-3,3)) +
+    ylim(c(-3,3)) +
+    labs(
+      title = "Equal probability contours for MVN",
+      x = expression(x[1]),
+      y = expression(x[2])
+    ) +
+    theme_bw()
+
+  p2 <- ggplot() +
+    geom_point(aes(x = 1:20, y = c(y, x))) +
+    geom_line(aes(x = 1:20, y = c(y, x))) +
+    geom_point(aes(x = 1:3), y = y, color = "purple") +
+    ylim(c(-3,3)) +
+    scale_x_continuous(breaks=1:20) +
+    labs(
+      title = "3 fixed points, then predictions",
+      x = "Variable index",
+      y = expression(x)
+    ) +
+    theme_bw()
+
+  return(list(p1,p2))
+}
+
+```
+
+
+```{r, warning=FALSE}
+plot <- plot_new_predictions(new_predictions())
+grid.arrange(
+  plot[[1]], plot[[2]],
+  nrow = 1
+)
+```
+
+## Fixing points with the conditional distribution
+
+```{r, warning=FALSE}
+plot <- plot_new_predictions(new_predictions())
+grid.arrange(
+  plot[[1]], plot[[2]],
+  nrow = 1
+)
+```
+
+
+## Fixing points with the conditional distribution
+
+```{r, warning=FALSE}
+plot <- plot_new_predictions(new_predictions())
+grid.arrange(
+  plot[[1]], plot[[2]],
+  nrow = 1
+)
+```
+
+
+## Fixing points with the conditional distribution
+
+```{r, warning=FALSE}
+plot <- plot_new_predictions(new_predictions())
+grid.arrange(
+  plot[[1]], plot[[2]],
+  nrow = 1
+)
+```
+
+
+## Fixing points with the conditional distribution
+
+```{r, warning=FALSE}
+plot <- plot_new_predictions(new_predictions())
+grid.arrange(
+  plot[[1]], plot[[2]],
+  nrow = 1
+)
+```
+
+
+## Fixing points with the conditional distribution
+
+```{r, warning=FALSE}
+plot <- plot_new_predictions(new_predictions())
+grid.arrange(
+  plot[[1]], plot[[2]],
+  nrow = 1
+)
+```
+
+
+## Fixing points with the conditional distribution
+
+```{r, warning=FALSE}
+plot <- plot_new_predictions(new_predictions())
+grid.arrange(
+  plot[[1]], plot[[2]],
+  nrow = 1
+)
+```
+
+
+## Fixing points with the conditional distribution
+
+```{r, warning=FALSE}
+plot <- plot_new_predictions(new_predictions())
+grid.arrange(
+  plot[[1]], plot[[2]],
+  nrow = 1
+)
+```
+
+
+
+## Formal definition of Gaussian Processes (GPs)
+
+A Gaussian process is a generalization of a multivariate Gaussian distribution to **infinitely** many variables.
+
+*A Gaussian process is a collection of random variables, any finite number of which have a joint Gaussian distribution.*
+
+As a distribution over functions, a Gaussian process is completely specified by two functions:
+
+- A mean function, $m(\mathbf{x}) = \mathbb{E}[f(\mathbf{x})]$ and
+- A covariance function, $k(\mathbf{x}, \mathbf{x^*}) = \mathbb{E}\Big[\big(f(\mathbf{x})- m(\mathbf{x})\big) - \big(f(\mathbf{x^*})- m(\mathbf{x^*}\big) \Big]$
+
+$$
+f(\mathbf{x}) \sim \mathcal{GP}\big(\, m(\mathbf{x}), k(\mathbf{x}, \mathbf{x^*}) \, \big)
+$$
+
+## Mathematical formalism: Regression
+
+Generative model
+
+$$
+y(\mathbf{x}) = f(\mathbf{x}) \Big[ + \epsilon\sigma_y \Big]\\
+p(\epsilon)=\mathcal{N}(0,1)
+$$
+
+Place GP prior over the nonlinear function (mean function often taken as 0).
+
+$$
+p(f(\mathbf{x}) \, | \, \theta) = \mathcal{GP}\big(0, k(\mathbf{x}, \mathbf{x^*})\big)\\
+k(\mathbf{x}, \mathbf{x^*}) = \sigma^2 \exp \left\{ -\frac{1}{2\ell^2}(x-x^*)^2 \right\}
+$$
+
+## Mathematical formalism: Predictions
+
+$$
+p(y_1, y_2) = \mathcal{N} \left( \begin{bmatrix} \boldsymbol{\mu_1\\ \mu_2} \end{bmatrix}, 
+\begin{bmatrix}
+\mathbf{\Sigma}_{11} & \mathbf{\Sigma}_{12}\\
+\mathbf{\Sigma}_{21} & \mathbf{\Sigma}_{22}
+\end{bmatrix}\right) 
+$$
+Bayes' theorem:
+
+$$
+p(\mathbf{y}_1 \,|\, \mathbf{y}_2) = \frac{p(\mathbf{y}_1, \mathbf{y}_2)}{p(\mathbf{y}_2)}
+$$
+
+With an involved proof:
+
+- Predictive mean: $\boldsymbol{\mu}_{\mathbf{y}_1|\mathbf{y}_2} = \boldsymbol{\mu_1} + \mathbf{\Sigma}_{12}\mathbf{\Sigma}_{22}^{-1}(\mathbf{y}_2-\boldsymbol{\mu}_2)$
+- Predictive variance: $\mathbf{\Sigma}_{\mathbf{y}_1|\mathbf{y}_2} = \mathbf{\Sigma}_{11} - \mathbf{\Sigma}_{12}\mathbf{\Sigma}_{22}^{-1}\mathbf{\Sigma}_{21}$
+
+
+
+# Optimization using Gaussian Processes
+
+
+## An expensive function to optimize
 
 - analytic expression for expected loss of evaluating y(x) under limited myopic approximation
 - consider multiple function evaluations into the future
@@ -407,31 +861,4 @@ grid.arrange(plot[[1]], plot[[2]]+labs(title = "20-d representation"), nrow = 1)
 - Gaussian process allows incorporation of prior information
 - Learning from observations of derivative
 - Resolution of conditioning issues
-
-
-
-## Mean and covariance functions
-
-## Generating functions using covariance
-
-## Formal definition of Gaussian Processes (GPs)
-
-
-
-
-# Section 3: Optimization using Gaussian Processes
-
-
-
-## Slide with R Output
-
-```{r cars, echo = TRUE}
-summary(cars)
-```
-
-## Slide with Plot
-
-```{r pressure}
-plot(pressure)
-```
 
