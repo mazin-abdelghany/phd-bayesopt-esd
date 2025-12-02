@@ -16,8 +16,7 @@ library(ggplot2)
 library(mvtnorm)
 library(gplite)
 library(gridExtra)
-
-install.packages("plgp")
+library(plgp)
 
 set.seed(5467)
 ```
@@ -645,34 +644,48 @@ In a simple example, imagine we are given two data points $\{(x_1, y_1); (x_2, y
 
 ```{r}
 new_predictions <- function() {
-  # u1|2 = mu1 + S12 S22inv (x2 - mu2)
-  # S1|2 = S11 - S12 S22inv S21
+  # equations for conditional mean vector and covariance matrix
+  # mu1|2 = mu1 + S12 * S22_inverse * (x2 - mu2)
+  # S1|2  = S11 - S12  * S22_inverse * S21
+  # note that S12 is same is S21 inverse and
+  # this fact is used in the code below
   
-  # given values
+  # given (x, y) pairs
   x2 <- 1:3
   y <- c(0.9, 0.64, 0.1)
   
-  # x to predict
+  # x pairs to predict new y
   x1 <- c(4:20)
   
-  # known covariance from given values
-  D <- plgp::distance(x2)
-  Sigma <- exp(-D/10) 
+  # self-distance between the given x values
+  distance22 <- plgp::distance(x2)
   
-  # generated from kernel function 
-  DXX <- plgp::distance(x1)
-  SXX <- exp(-DXX/10)
+  # squared exponential kernel implementation
+  S22 <- exp(-distance22/10) 
   
-  DX <- plgp::distance(x1, x2)
-  SX <- exp(-DX/10)
+  # self-distance between the new x values
+  distance11 <- plgp::distance(x1)
   
-  Si <- solve(Sigma)
-  mup <- SX %*% Si %*% y
-  Sigmap <- (SXX - SX %*% Si %*% t(SX)) 
+  # squared exponential kernel implementation
+  S11 <- exp(-distance11/10)
   
-  new_xs <- rmvnorm(1, mean = mup, sigma = Sigmap)
+  # distance between old and new x values
+  distance12 <- plgp::distance(x1, x2)
   
-  return(new_xs)
+  # squared exponential kernel implementation
+  S12 <- exp(-distance12/10)
+  
+  # generate new mean vector and covariance matrix
+  # note that mu1 and mu2 are set at 0, so do not enter in to the
+  # below equations
+  S22inv <- solve(S22)
+  mu1given2 <- SX %*% S22inv %*% y
+  S1given2 <- (S11 - S12 %*% S22inv %*% t(SX)) 
+  
+  # predict a single vector of new points
+  new_ys <- rmvnorm(1, mean = mu1given2, sigma = S1given2)
+  
+  return(new_ys)
 }
 ```
 
