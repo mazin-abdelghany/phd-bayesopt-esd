@@ -19,6 +19,7 @@ library(gplite)
 library(gridExtra)
 library(plgp)
 library(data.table)
+library(plotly)
 
 set.seed(5467)
 ```
@@ -173,6 +174,47 @@ ggplot() +
   ) +
   theme_bw()
 ```
+
+## Review of the Multivariate Normal (MVN) in 2-d
+
+PDF in 3 dimensions:
+
+```{r}
+# Define 2D Gaussian parameters
+mu  <- c(0, 0)  # mean vector
+Sigma <- matrix(c(1, 0.7,
+                  0.7, 1), nrow = 2)  # covariance matrix
+
+# Create grid for evaluation
+x <- seq(-3, 3, length.out = 100)
+y <- seq(-3, 3, length.out = 100)
+grid <- expand.grid(x = x, y = y)
+
+# Compute PDF values
+z <- dmvnorm(grid, mean = mu, sigma = Sigma)
+Z <- matrix(z, nrow = length(x), ncol = length(y))
+
+# Plot using plotly
+fig <- plot_ly(
+  x = x, 
+  y = y, 
+  z = Z,
+  type = "surface",
+  colorscale = "Viridis"
+)
+
+fig <- fig %>% layout(
+  title = "2D Gaussian PDF",
+  scene = list(
+    xaxis = list(title = "X"),
+    yaxis = list(title = "Y"),
+    zaxis = list(title = "Density")
+  )
+)
+
+fig
+```
+
 
 
 ## Review of the Multivariate Normal (MVN) in 2-d 
