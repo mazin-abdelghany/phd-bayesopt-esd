@@ -1,2 +1,13 @@
 /2025-11_Week-5/GP_regression_gpflow/.ipynb_checkpoints/
 /2025-12_Week-6/.ipynb_checkpoints/
+
+# ignore all LaTeX output files except .tex and .pdf
+/derivations/**/*.aux
+/derivations/**/*.bbl
+/derivations/**/*.bcf
+/derivations/**/*.blg
+/derivations/**/*.log
+/derivations/**/*.out
+/derivations/**/*.run.xml
+/derivations/**/*.synctex.gz
+/derivations/**/*-blx.bib
