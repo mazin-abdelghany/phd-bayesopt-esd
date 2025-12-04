@@ -2,8 +2,15 @@
 \usepackage{parskip}
 \usepackage{amsmath}
 \usepackage{amsfonts}
+\usepackage{amsthm}
 \usepackage{bm}
 \usepackage{xfrac}
+
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
 
 \title{Derivation of Multivariate Normal marginal and conditional distributions}
 \author{Mazin Abdelghany, MD, MS}
@@ -82,7 +89,7 @@ Now, let us partition our multivariate normal random vector $\bm{x}\in\mathbb{R}
 
 This new partitioned vector should have a multivariate normal distribution denoted by
 
-\[
+\begin{equation}\label{a}
 \begin{bmatrix}
 \bm{x}_a \\
 \bm{x}_b
@@ -90,10 +97,10 @@ This new partitioned vector should have a multivariate normal distribution denot
 \bm{u}_a \\
 \bm{u}_b
 \end{bmatrix}, \begin{bmatrix}
-\bm{\Sigma}_{aa} && \bm{\Sigma}_{ab} \\
-\bm{\Sigma}_{ba} && \bm{\Sigma}_{bb}
+\bm{\Sigma}_{aa} & \bm{\Sigma}_{ab} \\
+\bm{\Sigma}_{ba} & \bm{\Sigma}_{bb}
 \end{bmatrix} \right)
-\]
+\end{equation}
 
 With this background in mind, we can proceed to show that
 
@@ -110,9 +117,223 @@ With this background in mind, we can proceed to show that
 \end{itemize}
 \end{enumerate}
 
+Let us start with proof of the marginal mean vector and covariance matrix. The marginal pdf of $\bm{x}_a$ is:
 
+\begin{align*}
+f(\bm{x}_a) = \int_{\mathbb{R}^{(n-d)}} f(\bm{x}_a, \bm{x}_b)\, d\bm{x}_b
+\end{align*}
 
-Let us start with proof of the marginal mean vector and covariance matrix. The marginal pdf of a multivariate 
+because we are integrating out $\bm{x}_b$ leaving only the pdf of $\bm{x}_a$. Plugging in the values of the mean vectors and covariance matrices from equation \eqref{a}, we can write
+
+\begin{align*}
+f(\bm{x}_a) &= \int_{\mathbb{R}^{(n-d)}} \frac{1}{ (2\pi)^{\sfrac{n}{2}} \det(\bm{\Sigma})^{\sfrac{1}{2}}  } \exp \left\{\frac{1}{2} \left(
+\begin{bmatrix}
+\bm{x}_a \\
+\bm{x}_b
+\end{bmatrix} - 
+\begin{bmatrix}
+\bm{u}_a \\
+\bm{u}_b
+\end{bmatrix}\right)^\top 
+\begin{bmatrix}
+\bm{\Sigma}_{aa} & \bm{\Sigma}_{ab} \\
+\bm{\Sigma}_{ba} & \bm{\Sigma}_{bb}
+\end{bmatrix}^{-1} 
+\left(\begin{bmatrix}
+\bm{x}_a \\
+\bm{x}_b
+\end{bmatrix} - 
+\begin{bmatrix}
+\bm{u}_a \\
+\bm{u}_b
+\end{bmatrix}\right)  \right\}\, d\bm{x}_b \\
+&= \int_{\mathbb{R}^{(n-d)}} \frac{1}{ (2\pi)^{\sfrac{n}{2}} \det(\bm{\Sigma})^{\sfrac{1}{2}}  } \exp \left\{\frac{1}{2} \left(
+\begin{bmatrix}
+\bm{x}_a - \bm{u}_a  \\
+\bm{x}_b - \bm{u}_b
+\end{bmatrix}\right)^\top 
+\begin{bmatrix}
+\bm{\Sigma}_{aa} & \bm{\Sigma}_{ab} \\
+\bm{\Sigma}_{ba} & \bm{\Sigma}_{bb}
+\end{bmatrix}^{-1} 
+\left(\begin{bmatrix}
+\bm{x}_a - \bm{u}_a  \\
+\bm{x}_b - \bm{u}_b
+\end{bmatrix}\right)  \right\}\, d\bm{x}_b
+\end{align*}
+
+First, to simplify notation, let us define the normalizing constant as
+
+\[
+Q = (2\pi)^{\sfrac{n}{2}} \det(\bm{\Sigma})^{\sfrac{1}{2}}  
+\]
+
+Now, we need to introduce the concept of the precision matrix $\bm{\Lambda}$. The precision matrix is defined as the inverse of the covariance matrix: $\bm{\Lambda}=\bm{\Sigma}^{-1}$. Using this new definition, we note that
+
+\[
+\bm{\Lambda}=
+\begin{bmatrix}
+\bm{\Lambda}_{aa} & \bm{\Lambda}_{ab} \\
+\bm{\Lambda}_{ba} & \bm{\Lambda}_{bb}
+\end{bmatrix}=
+\begin{bmatrix}
+\bm{\Sigma}_{aa} & \bm{\Sigma}_{ab} \\
+\bm{\Sigma}_{ba} & \bm{\Sigma}_{bb}
+\end{bmatrix}^{-1}=
+\bm{\Sigma}^{-1}
+\]
+
+Now we can rewrite the above as:
+
+\[
+f(\bm{x}_a) = \int_{\mathbb{R}^{(n-d)}} \frac{1}{ Q } \exp \left\{\frac{1}{2} \left(
+\begin{bmatrix}
+\bm{x}_a - \bm{u}_a  \\
+\bm{x}_b - \bm{u}_b
+\end{bmatrix}\right)^\top 
+\begin{bmatrix}
+\bm{\Lambda}_{aa} & \bm{\Lambda}_{ab} \\
+\bm{\Lambda}_{ba} & \bm{\Lambda}_{bb}
+\end{bmatrix}
+\left(\begin{bmatrix}
+\bm{x}_a - \bm{u}_a  \\
+\bm{x}_b - \bm{u}_b
+\end{bmatrix}\right)  \right\}\, d\bm{x}_b
+\]
+
+It is important to note that $\bm{\Lambda}_{aa} \neq \bm{\Sigma}_{aa}^{-1}$ but rather that $\bm{\Lambda}=\bm{\Sigma}^{-1}$!
+
+Let us expand the positive of the expression within the exponent $\exp\{\cdot\}$ in two steps:
+
+\[
+\begin{bmatrix}
+\bm{x}_a - \bm{u}_a  \\
+\bm{x}_b - \bm{u}_b
+\end{bmatrix}^\top 
+\begin{bmatrix}
+\bm{\Lambda}_{aa} (\bm{x}_a - \bm{u}_a) + \bm{\Lambda}_{ab} (\bm{x}_b - \bm{u}_b) \\
+\bm{\Lambda}_{ba} (\bm{x}_a - \bm{u}_a) + \bm{\Lambda}_{ab} (\bm{x}_b - \bm{u}_b)
+\end{bmatrix}
+\]
+\begin{multline*}
+\frac{1}{2}(\bm{x}_a - \bm{u}_a) ^\top \bm{\Lambda}_{aa}(\bm{x}_a - \bm{u}_a) + \frac{1}{2}(\bm{x}_a - \bm{u}_a) ^\top \bm{\Lambda}_{ab}(\bm{x}_b - \bm{u}_b) + \\
++ \frac{1}{2}(\bm{x}_b - \bm{u}_b) ^\top \bm{\Lambda}_{ba}(\bm{x}_a - \bm{u}_a) + \frac{1}{2}(\bm{x}_b - \bm{u}_b) ^\top \bm{\Lambda}_{bb}(\bm{x}_b - \bm{u}_b) 
+\end{multline*}
+
+At this point we need to take advantage of the concept of completing the square. 
+\begin{theorem}
+\label{thrm1}
+Let $\bm{A}\in\mathbb{R}^{n \times n}$ be a symmetric, positive definite matrix and $\{\bm{z}, \bm{b}, \bm{c}\} \in \mathbb{R}^n$, then
+\[
+\frac{1}{2} \bm{z}^\top \bm{A}\bm{z} + \bm{b}^\top\bm{z} + \bm{c} = \frac{1}{2}(\bm{z} + \bm{A}^{-1}\bm{b})^\top\bm{A}(\bm{z}+\bm{A}^{-1}\bm{b})+\bm{c} - \frac{1}{2}\bm{b}^\top\bm{A}^{-1}\bm{b}
+\] 
+\end{theorem}
+\begin{lemma}
+Note that $\bm{b}^\top \bm{z}$ is a scalar ($\mathbb{R}^{1\times n} \cdot \mathbb{R}^{n \times 1} = 1 \times 1$). Note also that 
+\begin{equation*}
+\begin{aligned}
+\bm{b}^\top \bm{z} &= \begin{bmatrix}
+b_1 & b_2 & \dots & b_n
+\end{bmatrix}\begin{bmatrix}
+z_1 \\ z_2 \\ \dots \\ z_n
+\end{bmatrix}\\
+&=b_1z_1+b_2z_1+\dots+b_nz_n
+\end{aligned}\qquad
+\begin{aligned}
+\bm{z}^\top \bm{b} &= \begin{bmatrix}
+z_1 & z_2 & \dots & z_n
+\end{bmatrix}\begin{bmatrix}
+b_1 \\ b_2 \\ \dots \\ b_n
+\end{bmatrix}\\
+&=z_1b_1+z_1b_2+\dots+z_nb_n
+\end{aligned}
+\end{equation*}
+By the commutative property of multiplication of scalars, $\bm{b}^\top \bm{z} = \bm{z}^\top \bm{b}$.
+\end{lemma}
+\begin{proof}
+Thus,
+\[
+\frac{1}{2} \bm{z}^\top \bm{A}\bm{z} + \bm{b}^\top\bm{z} + \bm{c} = \frac{1}{2} \bm{z}^\top \bm{A}\bm{z} + \underbrace{\frac{1}{2}\bm{b}^\top\bm{z} + \frac{1}{2}\bm{z}^\top\bm{b}}_{\text{from lemma}} + \bm{c}
+\]
+Then, add and subtract $\frac{1}{2} \bm{b}^\top \bm{A}^{-1}\bm{b}$
+\begin{align*}
+&= \frac{1}{2} \bm{z}^\top \bm{A}\bm{z} +\frac{1}{2}\bm{b}^\top\bm{z} + \frac{1}{2}\bm{z}^\top\bm{b} + \bm{c} + \left(\frac{1}{2} \bm{b}^\top \bm{A}^{-1}\bm{b}-\frac{1}{2} \bm{b}^\top \bm{A}^{-1}\bm{b}\right)\\
+&\text{Rearrange terms.}\\
+&= \frac{1}{2} \bm{b}^\top\bm{z} + \frac{1}{2} \bm{b}^\top \bm{A}^{-1}\bm{b} + \frac{1}{2} \bm{z}^\top \bm{A}\bm{z} + \frac{1}{2}\bm{z}^\top\bm{b} + \bm{c}-\frac{1}{2} \bm{b}^\top \bm{A}^{-1}\bm{b}\\
+&\text{Pull out the $\frac{1}{2}$.}\\
+&= \frac{1}{2} (\bm{b}^\top\bm{z} + \bm{b}^\top \bm{A}^{-1}\bm{b} + \bm{z}^\top \bm{A}\bm{z} +\bm{z}^\top\bm{b} )+ \bm{c}-\frac{1}{2} \bm{b}^\top \bm{A}^{-1}\bm{b}\\
+&\text{Rearrange terms.}\\
+&= \frac{1}{2} (\bm{z}^\top \bm{A}\bm{z} + \bm{b}^\top\bm{z}  +\bm{z}^\top\bm{b} + \bm{b}^\top \bm{A}^{-1}\bm{b})+ \bm{c}-\frac{1}{2} \bm{b}^\top \bm{A}^{-1}\bm{b}\\
+\end{align*}
+We can now make a comparison to the scalar version of completing the square:
+\[
+=\frac{1}{2} (\underbrace{\bm{z}^\top \bm{A}\bm{z}}_{\text{like $Ax^2$}} + 
+\underbrace{\bm{b}^\top\bm{z}  +\bm{z}^\top\bm{b}}_{\text{like $2zb$}} + 
+\underbrace{\bm{b}^\top \bm{A}^{-1}\bm{b}}_{\text{like $\frac{1}{A}b^2$}})
++ \bm{c} - \frac{1}{2} \bm{b}^\top \bm{A}^{-1}\bm{b}
+\]
+In order to factorize the above in parentheses, we need to fill in some blanks:
+\[
+\frac{1}{2} (\bm{z}^\top \bm{A}\bm{z} + \bm{b}^\top\text{\underline{\phantom{xx}} }\bm{z}  +\bm{z}^\top\text{\underline{\phantom{xx}} }\bm{b} + \bm{b}^\top \bm{A}^{-1}\text{\underline{\phantom{xx}} }\bm{b})+ \bm{c}-\frac{1}{2} \bm{b}^\top \bm{A}^{-1}\bm{b}
+\]
+To leave the equation the same, we multiply by the identity matrix: $\bm{I} = \bm{A}\bm{A}^{-1}$.
+\begin{align*}
+&=\frac{1}{2} (\bm{z}^\top \bm{A}\bm{z} +\bm{z}^\top\bm{A}\bm{A}^{-1}\bm{b} + \bm{b}^\top\bm{A}^{-1}\bm{A}\bm{z}   + \bm{b}^\top \bm{A}^{-1}\bm{A}\bm{A}^{-1}\bm{b})+ \bm{c}-\frac{1}{2} \bm{b}^\top \bm{A}^{-1}\bm{b}\\
+&\text{Pull out $(\bm{z} + \bm{A}^{-1}\bm{b})$ on the right.}\\
+&=\frac{1}{2} ( \bm{z}^\top \bm{A} + \bm{b}^\top\bm{A}^{-1}\bm{A})(\bm{z} + \bm{A}^{-1}\bm{b} ) + \bm{c}-\frac{1}{2} \bm{b}^\top \bm{A}^{-1}\bm{b}\\
+&\text{Pull out $\bm{A}$ from the first expression.}\\
+&=\frac{1}{2} ( \bm{z}^\top + \bm{b}^\top\bm{A}^{-1})\bm{A}(\bm{z} + \bm{A}^{-1}\bm{b} ) + \bm{c}-\frac{1}{2} \bm{b}^\top \bm{A}^{-1}\bm{b}\\
+&\text{Remove a transpose from the first expression.}\\
+\frac{1}{2} \bm{z}^\top \bm{A}\bm{z} + \bm{b}^\top\bm{z} + \bm{c}&=\frac{1}{2} ( \bm{z} + \bm{A}^{-1}\bm{b})^\top\bm{A}(\bm{z} + \bm{A}^{-1}\bm{b} ) + \bm{c}-\frac{1}{2} \bm{b}^\top \bm{A}^{-1}\bm{b}\\
+\end{align*}
+\end{proof}
+
+Back to the problem at hand. Let us complete the square:
+
+\begin{multline*}
+\frac{1}{2}(\bm{x}_a - \bm{u}_a) ^\top \bm{\Lambda}_{aa}(\bm{x}_a - \bm{u}_a) + \frac{1}{2}(\bm{x}_a - \bm{u}_a) ^\top \bm{\Lambda}_{ab}(\bm{x}_b - \bm{u}_b) + \\
++ \frac{1}{2}(\bm{x}_b - \bm{u}_b) ^\top \bm{\Lambda}_{ba}(\bm{x}_a - \bm{u}_a) + \frac{1}{2}(\bm{x}_b - \bm{u}_b) ^\top \bm{\Lambda}_{bb}(\bm{x}_b - \bm{u}_b) 
+\end{multline*}
+
+Define the following recalling that all precision and covariance matrices are positive semidefinite:
+
+\begin{equation*}
+\begin{aligned}
+\bm{A} = \bm{\Lambda}_{bb}
+\end{aligned} \qquad
+\begin{aligned}
+\bm{z} &= \bm{x}_b - \bm{\mu}_b\\
+\bm{b} &= \bm{\Lambda}_{ba} (\bm{x}_b - \bm{\mu}_b)\\
+\bm{c} &= \frac{1}{2}(\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{aa} (\bm{x}_a - \bm{\mu}_a)
+\end{aligned}
+\end{equation*}
+
+Note also that, using the fact that $\bm{\Lambda}_{ba}^\top = \bm{\Lambda}_{ab}$,
+
+\[
+\bm{b} = \bm{\Lambda}_{ba} (\bm{x}_a - \bm{\mu}_a) \implies \bm{b}^\top =  (\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{ab}
+\]
+
+We note,
+
+\begin{align*}
+\frac{1}{2} \bm{z}^\top \bm{A}\bm{z} &= \frac{1}{2} (\bm{x}_b - \bm{\mu}_b)^\top\bm{\Lambda}_{bb}(\bm{x}_b - \bm{\mu}_b) \\
+\bm{b}^\top\bm{z} &= (\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{ab}(\bm{x}_b - \bm{\mu}_b)\\
+\bm{c} &=  \frac{1}{2}(\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{aa} (\bm{x}_a - \bm{\mu}_a)
+\end{align*}
+
+And applying Theorem \eqref{thrm1},
+
+\begin{multline*}
+\frac{1}{2} \Big[ \big(  (\bm{x}_b - \bm{\mu}_b) \bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} (\bm{x}_a - \bm{\mu}_a) \big)^\top \bm{\Lambda}_{bb}  \big(  (\bm{x}_b - \bm{\mu}_b) \bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} (\bm{x}_a - \bm{\mu}_a) \big)\Big] \\
++ \frac{1}{2}(\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{aa}(\bm{x}_a - \bm{\mu}_a) - \frac{1}{2}(\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba}(\bm{x}_a - \bm{\mu}_a)
+\end{multline*}
+
+The full expression is now:
+
+\[
+
+\]
 
 
 
