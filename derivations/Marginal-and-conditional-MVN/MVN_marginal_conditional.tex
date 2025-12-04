@@ -3,6 +3,7 @@
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{bm}
+\usepackage{xfrac}
 
 \title{Derivation of Multivariate Normal marginal and conditional distributions}
 \author{Mazin Abdelghany, MD, MS}
@@ -11,6 +12,154 @@
 \begin{document}
 
 \maketitle
+
+Gaussian process regression relies on several special properties of multivariate normal (MVN) distributions. The two most important of those properties are that:
+\begin{enumerate}
+\item The conditional distribution of a multivariate normal is normal
+\item The marginal distribution of a multivariate normal is normal
+\end{enumerate}
+
+Moreover, these two above items can be calculated in closed form. Suppose that we have an $n$-dimensional Gaussian\footnote{Gaussian and normal will be interchanged throughout this document and used as synonyms.} random vector\footnote{Throughout this document, vectors will be denoted using lowercased bold letters while matrices will be denoted as uppercase bold letters.} $\bm{x}\in\mathbb{R}^n$. That is, 
+
+\[
+\bm{x} = \begin{bmatrix}
+x_1 \sim \mathcal{N}(\mu_1, \sigma_1^2) \\
+x_2 \sim \mathcal{N}(\mu_2, \sigma_2^2) \\
+\vdots\\
+x_n \sim \mathcal{N}(\mu_3, \sigma_3^2) 
+\end{bmatrix}
+\]
+
+Using vector-matrix notation, we can rewrite the distribution statement as:
+
+\[
+\bm{x} \sim \mathcal{N}_n(\bm{\mu}, \bm{\Sigma})
+\]
+
+with the subscipt $n$ indicating that vector $\bm{x}$ is $n$-dimensional.
+
+In this case, $\bm{\mu}$ has become a mean \textit{\textbf{vector}} of (possibly different) means for each of our random variables and $\bm{\Sigma}$ has become a covariace \textit{\textbf{matrix}}:
+
+\begin{align*}
+\bm{\mu} = \begin{bmatrix}
+\mu_1\\
+\mu_2\\
+\vdots\\
+\mu_n
+\end{bmatrix} &&
+\bm{\Sigma} = \begin{bmatrix}
+\sigma_{11} & \sigma_{12} & \cdots & \sigma_{1n} \\
+\sigma_{21} & \sigma_{22} & \cdots & \sigma_{2n} \\
+\vdots & \vdots & \ddots & \vdots \\
+\sigma_{n1} & \sigma_{n2} & \cdots & \sigma_{nn} 
+\end{bmatrix}
+\end{align*}
+
+We can make a few observations about this formulation:
+
+\begin{enumerate}
+\item $\bm{\mu} \in \mathbb{R}^n$ and $\bm{\Sigma}\in\mathbb{R}^{n\times n}$ (i.e., the mean is $n$-dimensional and the covariance matrix is $n\times n$-dimensional).
+\item $\bm{\mu}$ is the same number of dimensions as $\bm{x}$.
+\item $\bm{\mu}$ can assign a different $\mu_i$ for each $x_i \in \bm{x}$.
+\item $\bm{\Sigma}$ is symmetric and all its entries are positive or zero (more strictly, it must be positive semidefinite).
+\item The diagnoal of $\bm{\Sigma}$ is the covariance between $x_i$ and itself, which is the same as the variance of $x_i$ (i.e., $\sigma_{11} = \sigma_1^2$).
+\end{enumerate}
+
+The pdf of a multivariate Gaussian is:
+
+\[
+f(\bm{x}) = \frac{1}{ (2\pi)^{\sfrac{n}{2}} \det(\bm{\Sigma})^{\sfrac{1}{2}}  } \exp \left\{\frac{1}{2} (\bm{x} - \bm{\mu})^\top \bm{\Sigma}^{-1} (\bm{x} - \bm{\mu})  \right\}
+\]
+
+Now, let us partition our multivariate normal random vector $\bm{x}\in\mathbb{R}^n$ into two multvariate normal random vectors $\bm{x}_a\in\mathbb{R}^d$ and $\bm{x}_b\in\mathbb{R}^{(n-d)}$:\footnote{Note the dimensions of each vector!}
+
+\[
+\bm{x} = \begin{bmatrix}
+\bm{x}_a \\
+\bm{x}_b
+\end{bmatrix}
+\]
+
+This new partitioned vector should have a multivariate normal distribution denoted by
+
+\[
+\begin{bmatrix}
+\bm{x}_a \\
+\bm{x}_b
+\end{bmatrix} = \mathcal{N}\left( \begin{bmatrix}
+\bm{u}_a \\
+\bm{u}_b
+\end{bmatrix}, \begin{bmatrix}
+\bm{\Sigma}_{aa} && \bm{\Sigma}_{ab} \\
+\bm{\Sigma}_{ba} && \bm{\Sigma}_{bb}
+\end{bmatrix} \right)
+\]
+
+With this background in mind, we can proceed to show that
+
+\begin{enumerate}
+\item The conditional mean vector and covariance matrix of a multivariate normal for the vector $\bm{x}_a$ given a realization of the vector $\bm{x}_b$ are
+\begin{itemize}
+\item $\bm{\mu}_{\bm{x}_a\,|\,\bm{x}_b} = \bm{\mu_a} + \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}(\bm{x}_b-\bm{\mu}_b)$
+\item $\bm{\Sigma}_{\bm{x}_a\,|\,\bm{x}_b} = \bm{\Sigma}_{aa} - \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba}$
+\end{itemize}
+\item The marginal mean vector and covariance matrix of a multivariate normal for $\bm{x}_a$ are
+\begin{itemize}
+\item $\bm{\mu}_{\bm{x}_a} = \bm{\mu}_a$
+\item $\bm{\Sigma}_{\bm{x}_a} = \bm{\Sigma}_{aa}$
+\end{itemize}
+\end{enumerate}
+
+
+
+Let us start with proof of the marginal mean vector and covariance matrix. The marginal pdf of a multivariate 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
