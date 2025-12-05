@@ -341,17 +341,17 @@ We now observe that if we replace $ \bm{\mu}_b + \bm{\Lambda}_{bb}^{-1}\bm{\Lamb
 
 Note, that this integral is a multivariate normal kernel with mean vector $\bm{m}$ and covariance matrix $\bm{\Lambda}_{bb}$ and that we are integrating over the correct dimensionality of $\bm{x}_b$! Therefore, the integral evaluates to the normalizing constant
 \[
-(2\pi)^{\sfrac{n-d}{2}} \det(\bm{\Lambda}_{bb}^{-1})^{\sfrac{1}{2}}
+(2\pi)^{\frac{n-d}{2}} \det(\bm{\Lambda}_{bb}^{-1})^{\sfrac{1}{2}}
 \]
 
 Plugging this into equation \eqref{eq5}, we write
 \begin{multline*}
-f(\bm{x}_a) = \frac{1}{Q} (2\pi)^{\sfrac{n-d}{2}} \det(\bm{\Lambda}_{bb}^{-1})^{\sfrac{1}{2}}\\  \exp \left\{\frac{1}{2}(\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{aa}(\bm{x}_a - \bm{\mu}_a) + \frac{1}{2}(\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba}(\bm{x}_a - \bm{\mu}_a) \right\}
+f(\bm{x}_a) = \frac{1}{Q} (2\pi)^{\frac{n-d}{2}} \det(\bm{\Lambda}_{bb}^{-1})^{\sfrac{1}{2}}\\  \exp \left\{\frac{1}{2}(\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{aa}(\bm{x}_a - \bm{\mu}_a) + \frac{1}{2}(\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba}(\bm{x}_a - \bm{\mu}_a) \right\}
 \end{multline*}
 
 Pulling out a $-\frac{1}{2}$, 
 \begin{multline*}
-f(\bm{x}_a) = \frac{1}{Q} (2\pi)^{\sfrac{n-d}{2}} \det(\bm{\Lambda}_{bb}^{-1})^{\sfrac{1}{2}}\\  \exp \left\{-\frac{1}{2}\left[ (\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{aa}(\bm{x}_a - \bm{\mu}_a) - (\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba}(\bm{x}_a - \bm{\mu}_a)\right]   \right\}
+f(\bm{x}_a) = \frac{1}{Q} (2\pi)^{\frac{n-d}{2}} \det(\bm{\Lambda}_{bb}^{-1})^{\sfrac{1}{2}}\\  \exp \left\{-\frac{1}{2}\left[ (\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{aa}(\bm{x}_a - \bm{\mu}_a) - (\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba}(\bm{x}_a - \bm{\mu}_a)\right]   \right\}
 \end{multline*}
 
 Then pulling out a $(\bm{x}_a - \bm{\mu}_a)^\top$ from the left and an $(\bm{x}_a - \bm{\mu}_a)$ from the right, we get
@@ -392,14 +392,14 @@ We now need a result from linear algebra.
 
 \begin{theorem}
 \label{thrm3}
-For a block matrix 
+Let $\bm{M}$ be a symmetric, positive definite block matrix,
 \[
 \bm{M} = \begin{bmatrix}
 \bm{A} & \bm{B} \\
 \bm{C} & \bm{D}
 \end{bmatrix}
 \]
-where $\bm{M}$ is symmetric, positive definite, we can define $\bm{M}^{-1}$ using the Shur complement of $\bm{D}$ in $\bm{M}$, $(\bm{A} - \bm{B}\bm{D}^{-1}\bm{C}) ^{-1}$:
+We can define $\bm{M}^{-1}$ using the Shur complement, $\bm{D}$ in $\bm{M}$: $(\bm{A} - \bm{B}\bm{D}^{-1}\bm{C}) ^{-1}$.
 \[
 \begin{bmatrix}
 \bm{A} & \bm{B} \\
@@ -412,7 +412,7 @@ where $\bm{M}$ is symmetric, positive definite, we can define $\bm{M}^{-1}$ usin
 \end{theorem}
 
 Using Theorem \eqref{thrm3}, we write
-\[
+\begin{multline}
 \begin{bmatrix}
 \bm{\Sigma}_{aa} & \bm{\Sigma}_{ab} \\
 \bm{\Sigma}_{ba} & \bm{\Sigma}_{bb}
@@ -420,17 +420,108 @@ Using Theorem \eqref{thrm3}, we write
 \begin{bmatrix}
 \bm{\Lambda}_{aa} & \bm{\Lambda}_{ab} \\
 \bm{\Lambda}_{ba} & \bm{\Lambda}_{bb}
-\end{bmatrix}^{-1}=
+\end{bmatrix}^{-1}\\=
 \begin{bmatrix}
- &  \\
- & 
+(\bm{\Lambda}_{aa} - \bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} ) ^{-1} & -(\bm{\Lambda}_{aa} - \bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} ) ^{-1}\bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1} \\
+-\bm{\Lambda}_{bb}\bm{\Lambda}_{ba} (\bm{\Lambda}_{aa}- \bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} ) ^{-1} & \bm{\Lambda}_{bb}^{-1} + \bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} (\bm{\Lambda}_{aa} - \bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} ) ^{-1}\bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}
+\end{bmatrix}
+\end{multline}
+
+Reading across, we see that
+\begin{align*}
+\bm{\Sigma}_{aa} &=(\bm{\Lambda}_{aa} - \bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} ) ^{-1} \\
+\bm{\Sigma}_{aa}^{-1} &=\bm{\Lambda}_{aa} - \bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} 
+\end{align*}
+
+Lastly, we handle the normalization constant. We need one more result from linear algebra regarding the determinant of block matrices:
+\begin{theorem}
+\label{thrm4}
+Again, let $\bm{M}$ be a symmetric, positive definite block matrix,
+\[
+\bm{M} = \begin{bmatrix}
+\bm{A} & \bm{B} \\
+\bm{C} & \bm{D}
 \end{bmatrix}
 \]
+The determinant of $\bm{M}$ is
+\[
+\det(\bm{M}) = \det(\bm{A})\det(\bm{D} - \bm{C}\bm{A}^{-1}\bm{B})
+\]
+\end{theorem}
+
+From equation \eqref{eq6}, we pull the constant, and replace $Q$ with its value,
+\begin{align}
+\label{eq8}
+\frac{1}{Q} (2\pi)^{\frac{n-d}{2}} \det((\bm{\Lambda}_{bb}^{-1})^{\sfrac{1}{2}}) &= (2\pi)^{\frac{-n}{2}} \det(\bm{\Sigma})^{-\sfrac{1}{2}} (2\pi)^{\frac{n-d}{2}} \det((\bm{\Lambda}_{bb}^{-1})^{\sfrac{1}{2}})
+\end{align}
+
+Using theorem \eqref{thrm4}, the determinant of the block matrix $\bm{\Sigma}$ is
+\[\det(\bm{\Sigma}) = \det(\bm{\Sigma}_{aa})\det(\Sigma_{bb} - \bm{\Sigma}_{ba}\bm{\Sigma}_{aa}^{-1}\bm{\Sigma}_{ab})\]
+
+Plugging this into equation \eqref{eq8} and distributing the exponent $-\sfrac{1}{2}$, we can write,
+\begin{align*}
+&=(2\pi)^{\frac{-n}{2}} \det(\bm{\Sigma}_{aa})^{-\sfrac{1}{2}}\det(\bm{\Sigma}_{bb} - \bm{\Sigma}_{ba}\bm{\Sigma}_{aa}^{-1}\bm{\Sigma}_{ab})^{-\sfrac{1}{2}} (2\pi)^{\frac{n-d}{2}} \det((\bm{\Lambda}_{bb}^{-1})^{\sfrac{1}{2}})\\
+&\text{Rearranging terms.}\\
+&=(2\pi)^{\frac{-n}{2}}(2\pi)^{\frac{n-d}{2}}\det(\bm{\Sigma}_{aa})^{-\sfrac{1}{2}}\det(\bm{\Sigma}_{bb} - \bm{\Sigma}_{ba}\bm{\Sigma}_{aa}^{-1}\bm{\Sigma}_{ab})^{-\sfrac{1}{2}}\det((\bm{\Lambda}_{bb}^{-1})^{\sfrac{1}{2}})\\
+&\text{Combining exponents over $\pi$.}\\
+&=(2\pi)^{\frac{-d}{2}}\det(\bm{\Sigma}_{aa})^{-\sfrac{1}{2}}\det(\bm{\Sigma}_{bb} - \bm{\Sigma}_{ba}\bm{\Sigma}_{aa}^{-1}\bm{\Sigma}_{ab})^{-\sfrac{1}{2}}\det((\bm{\Lambda}_{bb}^{-1})^{\sfrac{1}{2}})
+\end{align*}
+
+And if
+\[\bm{\Sigma}_{aa} =(\bm{\Lambda}_{aa} - \bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} ) ^{-1} \]
+then,
+\[\bm{\Sigma}_{bb} =(\bm{\Lambda}_{bb} - \bm{\Lambda}_{ba}\bm{\Lambda}_{aa}^{-1}\bm{\Lambda}_{ab} ) ^{-1} \]
+and likewise
+\begin{align*}
+\bm{\Lambda}_{bb} &= (\bm{\Sigma}_{bb}- \bm{\Sigma}_{ba} \bm{\Sigma}_{aa}^{-1} \bm{\Sigma}_{ab})^{-1}\\
+\bm{\Lambda}_{bb}^{-1} &= (\bm{\Sigma}_{bb}- \bm{\Sigma}_{ba} \bm{\Sigma}_{aa}^{-1} \bm{\Sigma}_{ab})
+\end{align*}
+
+Replacing the $\bm{\Lambda}_{bb}^{-1}$, we write
+\[
+(2\pi)^{\frac{-d}{2}}\det(\bm{\Sigma}_{aa})^{-\sfrac{1}{2}}\det(\bm{\Sigma}_{bb} -\bm{\Sigma}_{ba}\bm{\Sigma}_{aa}^{-1}\bm{\Sigma}_{ab})^{-\sfrac{1}{2}}\det(\bm{\Sigma}_{bb}- \bm{\Sigma}_{ba} \bm{\Sigma}_{aa}^{-1} \bm{\Sigma}_{ab})^{\sfrac{1}{2}}
+\]
+
+The two determinants on the right cancel leaving the final normalizing constant as
+\[(2\pi)^{\frac{-d}{2}}\det(\bm{\Sigma}_{aa})^{-\sfrac{1}{2}}\]
+
+We can now rewrite equation \eqref{eq6} as
+\begin{align}
+f(\bm{x}_a) &= \frac{1}{(2\pi)^{\frac{-d}{2}}\det(\bm{\Sigma}_{aa})^{-\sfrac{1}{2}}}  \exp \left\{-\frac{1}{2}\left[ (\bm{x}_a - \bm{\mu}_a)^\top \underbrace{\bm{\Lambda}_{aa} - \bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba}}_{\bm{\Sigma}_{aa}^{-1}}(\bm{x}_a - \bm{\mu}_a)\right]   \right\}\\
+\label{eq10}
+&=\frac{1}{(2\pi)^{\frac{-d}{2}}\det(\bm{\Sigma}_{aa})^{-\sfrac{1}{2}}}  \exp \left\{-\frac{1}{2}\left[ (\bm{x}_a - \bm{\mu}_a)^\top \bm{\Sigma}_{aa}^{-1}(\bm{x}_a - \bm{\mu}_a)\right]   \right\}
+\end{align}
+
+Recall that we defined $\bm{x}_a$ as a multivariate normal random vector in $\mathbb{R}^d$. Therefore, miraculously, the exponent in the normalizing constant is correct! Furthermore, it is clear that the last equation \eqref{eq10}, is the multivariate normal pdf with mean vector $\bm{\mu}_a$ and covariance matrix $\bm{\Sigma}_{aa}$. Thus,
+\[p(\bm{x}_{a}) \sim \mathcal{N}(\bm{\mu}_{a}, \bm{\Sigma}_{aa})\qquad\]
+and likewise
+\[p(\bm{x}_{b}) \sim \mathcal{N}(\bm{\mu}_{b}, \bm{\Sigma}_{bb})\qquad\square\]
 
 \section{Conditional of multivariate normal}
 
+Remaining in the same setup, our multivariate normal random vector $\bm{x}\in\mathbb{R}^n$ has two multvariate normal random vector partitions $\bm{x}_a\in\mathbb{R}^d$ and $\bm{x}_b\in\mathbb{R}^{(n-d)}$.
+\[
+\bm{x} = \begin{bmatrix}
+\bm{x}_a \\
+\bm{x}_b
+\end{bmatrix}
+\]
 
+This new partitioned vector should have a multivariate normal distribution denoted by
+\begin{equation}\label{a}
+\begin{bmatrix}
+\bm{x}_a \\
+\bm{x}_b
+\end{bmatrix} = \mathcal{N}\left( \begin{bmatrix}
+\bm{u}_a \\
+\bm{u}_b
+\end{bmatrix}, \begin{bmatrix}
+\bm{\Sigma}_{aa} & \bm{\Sigma}_{ab} \\
+\bm{\Sigma}_{ba} & \bm{\Sigma}_{bb}
+\end{bmatrix} \right)
+\end{equation}
 
+We 
 
 
 
