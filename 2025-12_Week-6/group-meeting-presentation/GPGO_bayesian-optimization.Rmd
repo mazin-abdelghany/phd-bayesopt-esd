@@ -29,7 +29,7 @@ set.seed(5467)
 
 ## Non-linear regression
 
-Given $n$ data points $\{x_i, y_i\}_{i=1}^n$
+Given $n$ data points $\{x_i, y_i\}_{i=1}^n \xrightarrow{\text{Predict}} (x_{\texttt{new}}, y_{\texttt{new}})$
 
 ```{r}
 x <- seq(from = 0, to = 2*pi + 0.2, length.out = 50)
@@ -75,7 +75,7 @@ ggplot() +
 
 <div style="float: left; width: 73.47%;">
 
-$\{x_i, y_i\}_{i=1}^n \xrightarrow{\text{Predict}} (x_{\texttt{new}}, y_{\texttt{new}})$
+Given $n$ data points $\{x_i, y_i\}_{i=1}^n \xrightarrow{\text{Predict}} (x_{\texttt{new}}, y_{\texttt{new}})$
 
 ```{r}
 x <- seq(from = 0, to = 2*pi + 0.2, length.out = 50)
@@ -177,7 +177,7 @@ ggplot() +
 
 ## Review of the Multivariate Normal (MVN) in 2-d
 
-PDF in 3 dimensions:
+MVN pdf in 3 dimensions:
 
 ```{r}
 # Define 2D Gaussian parameters
@@ -204,10 +204,10 @@ fig <- plot_ly(
 )
 
 fig <- fig %>% layout(
-  title = "2D Gaussian PDF",
+  title = "2-D Gaussian pdf",
   scene = list(
-    xaxis = list(title = "X"),
-    yaxis = list(title = "Y"),
+    xaxis = list(title = "x"),
+    yaxis = list(title = "y"),
     zaxis = list(title = "Density")
   )
 )
