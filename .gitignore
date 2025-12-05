@@ -11,3 +11,4 @@
 /derivations/**/*.run.xml
 /derivations/**/*.synctex.gz
 /derivations/**/*-blx.bib
+/derivations/**/*.toc
