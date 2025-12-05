@@ -20,6 +20,8 @@
 
 \maketitle
 
+\section{Background}
+
 Gaussian process regression relies on several special properties of multivariate normal (MVN) distributions. The two most important of those properties are that:
 \begin{enumerate}
 \item The conditional distribution of a multivariate normal is normal
@@ -27,7 +29,6 @@ Gaussian process regression relies on several special properties of multivariate
 \end{enumerate}
 
 Moreover, these two above items can be calculated in closed form. Suppose that we have an $n$-dimensional Gaussian\footnote{Gaussian and normal will be interchanged throughout this document and used as synonyms.} random vector\footnote{Throughout this document, vectors will be denoted using lowercased bold letters while matrices will be denoted as uppercase bold letters.} $\bm{x}\in\mathbb{R}^n$. That is, 
-
 \[
 \bm{x} = \begin{bmatrix}
 x_1 \sim \mathcal{N}(\mu_1, \sigma_1^2) \\
@@ -38,7 +39,6 @@ x_n \sim \mathcal{N}(\mu_3, \sigma_3^2)
 \]
 
 Using vector-matrix notation, we can rewrite the distribution statement as:
-
 \[
 \bm{x} \sim \mathcal{N}_n(\bm{\mu}, \bm{\Sigma})
 \]
@@ -46,7 +46,6 @@ Using vector-matrix notation, we can rewrite the distribution statement as:
 with the subscipt $n$ indicating that vector $\bm{x}$ is $n$-dimensional.
 
 In this case, $\bm{\mu}$ has become a mean \textit{\textbf{vector}} of (possibly different) means for each of our random variables and $\bm{\Sigma}$ has become a covariace \textit{\textbf{matrix}}:
-
 \begin{align*}
 \bm{\mu} = \begin{bmatrix}
 \mu_1\\
@@ -63,7 +62,6 @@ In this case, $\bm{\mu}$ has become a mean \textit{\textbf{vector}} of (possibly
 \end{align*}
 
 We can make a few observations about this formulation:
-
 \begin{enumerate}
 \item $\bm{\mu} \in \mathbb{R}^n$ and $\bm{\Sigma}\in\mathbb{R}^{n\times n}$ (i.e., the mean is $n$-dimensional and the covariance matrix is $n\times n$-dimensional).
 \item $\bm{\mu}$ is the same number of dimensions as $\bm{x}$.
@@ -73,13 +71,11 @@ We can make a few observations about this formulation:
 \end{enumerate}
 
 The pdf of a multivariate Gaussian is:
-
 \[
-f(\bm{x}) = \frac{1}{ (2\pi)^{\sfrac{n}{2}} \det(\bm{\Sigma})^{\sfrac{1}{2}}  } \exp \left\{\frac{1}{2} (\bm{x} - \bm{\mu})^\top \bm{\Sigma}^{-1} (\bm{x} - \bm{\mu})  \right\}
+f(\bm{x}) = \frac{1}{ (2\pi)^{\sfrac{n}{2}} \det(\bm{\Sigma})^{\sfrac{1}{2}}  } \exp \left\{-\frac{1}{2} (\bm{x} - \bm{\mu})^\top \bm{\Sigma}^{-1} (\bm{x} - \bm{\mu})  \right\}
 \]
 
 Now, let us partition our multivariate normal random vector $\bm{x}\in\mathbb{R}^n$ into two multvariate normal random vectors $\bm{x}_a\in\mathbb{R}^d$ and $\bm{x}_b\in\mathbb{R}^{(n-d)}$:\footnote{Note the dimensions of each vector!}
-
 \[
 \bm{x} = \begin{bmatrix}
 \bm{x}_a \\
@@ -88,7 +84,6 @@ Now, let us partition our multivariate normal random vector $\bm{x}\in\mathbb{R}
 \]
 
 This new partitioned vector should have a multivariate normal distribution denoted by
-
 \begin{equation}\label{a}
 \begin{bmatrix}
 \bm{x}_a \\
@@ -117,16 +112,16 @@ With this background in mind, we can proceed to show that
 \end{itemize}
 \end{enumerate}
 
-Let us start with proof of the marginal mean vector and covariance matrix. The marginal pdf of $\bm{x}_a$ is:
+\section{Marginal of mulitvariate normal}
 
+Let us start with proof of the marginal mean vector and covariance matrix. The marginal pdf of $\bm{x}_a$ is:
 \begin{align*}
 f(\bm{x}_a) = \int_{\mathbb{R}^{(n-d)}} f(\bm{x}_a, \bm{x}_b)\, d\bm{x}_b
 \end{align*}
 
 because we are integrating out $\bm{x}_b$ leaving only the pdf of $\bm{x}_a$. Plugging in the values of the mean vectors and covariance matrices from equation \eqref{a}, we can write
-
 \begin{align*}
-f(\bm{x}_a) &= \int_{\mathbb{R}^{(n-d)}} \frac{1}{ (2\pi)^{\sfrac{n}{2}} \det(\bm{\Sigma})^{\sfrac{1}{2}}  } \exp \left\{\frac{1}{2} \left(
+f(\bm{x}_a) &= \int_{\mathbb{R}^{(n-d)}} \frac{1}{ (2\pi)^{\sfrac{n}{2}} \det(\bm{\Sigma})^{\sfrac{1}{2}}  } \exp \left\{-\frac{1}{2} \left(
 \begin{bmatrix}
 \bm{x}_a \\
 \bm{x}_b
@@ -147,7 +142,7 @@ f(\bm{x}_a) &= \int_{\mathbb{R}^{(n-d)}} \frac{1}{ (2\pi)^{\sfrac{n}{2}} \det(\b
 \bm{u}_a \\
 \bm{u}_b
 \end{bmatrix}\right)  \right\}\, d\bm{x}_b \\
-&= \int_{\mathbb{R}^{(n-d)}} \frac{1}{ (2\pi)^{\sfrac{n}{2}} \det(\bm{\Sigma})^{\sfrac{1}{2}}  } \exp \left\{\frac{1}{2} \left(
+&= \int_{\mathbb{R}^{(n-d)}} \frac{1}{ (2\pi)^{\sfrac{n}{2}} \det(\bm{\Sigma})^{\sfrac{1}{2}}  } \exp \left\{-\frac{1}{2} \left(
 \begin{bmatrix}
 \bm{x}_a - \bm{u}_a  \\
 \bm{x}_b - \bm{u}_b
@@ -163,13 +158,11 @@ f(\bm{x}_a) &= \int_{\mathbb{R}^{(n-d)}} \frac{1}{ (2\pi)^{\sfrac{n}{2}} \det(\b
 \end{align*}
 
 First, to simplify notation, let us define the normalizing constant as
-
 \[
 Q = (2\pi)^{\sfrac{n}{2}} \det(\bm{\Sigma})^{\sfrac{1}{2}}  
 \]
 
 Now, we need to introduce the concept of the precision matrix $\bm{\Lambda}$. The precision matrix is defined as the inverse of the covariance matrix: $\bm{\Lambda}=\bm{\Sigma}^{-1}$. Using this new definition, we note that
-
 \[
 \bm{\Lambda}=
 \begin{bmatrix}
@@ -184,9 +177,9 @@ Now, we need to introduce the concept of the precision matrix $\bm{\Lambda}$. Th
 \]
 
 Now we can rewrite the above as:
-
-\[
-f(\bm{x}_a) = \int_{\mathbb{R}^{(n-d)}} \frac{1}{ Q } \exp \left\{\frac{1}{2} \left(
+\begin{equation}
+\label{eq2}
+f(\bm{x}_a) = \int_{\mathbb{R}^{(n-d)}} \frac{1}{ Q } \exp \left\{-\frac{1}{2} \left(
 \begin{bmatrix}
 \bm{x}_a - \bm{u}_a  \\
 \bm{x}_b - \bm{u}_b
@@ -199,12 +192,11 @@ f(\bm{x}_a) = \int_{\mathbb{R}^{(n-d)}} \frac{1}{ Q } \exp \left\{\frac{1}{2} \l
 \bm{x}_a - \bm{u}_a  \\
 \bm{x}_b - \bm{u}_b
 \end{bmatrix}\right)  \right\}\, d\bm{x}_b
-\]
+\end{equation}
 
 It is important to note that $\bm{\Lambda}_{aa} \neq \bm{\Sigma}_{aa}^{-1}$ but rather that $\bm{\Lambda}=\bm{\Sigma}^{-1}$!
 
 Let us expand the positive of the expression within the exponent $\exp\{\cdot\}$ in two steps:
-
 \[
 \begin{bmatrix}
 \bm{x}_a - \bm{u}_a  \\
@@ -215,10 +207,11 @@ Let us expand the positive of the expression within the exponent $\exp\{\cdot\}$
 \bm{\Lambda}_{ba} (\bm{x}_a - \bm{u}_a) + \bm{\Lambda}_{ab} (\bm{x}_b - \bm{u}_b)
 \end{bmatrix}
 \]
-\begin{multline*}
+\begin{multline}
+\label{eq3}
 \frac{1}{2}(\bm{x}_a - \bm{u}_a) ^\top \bm{\Lambda}_{aa}(\bm{x}_a - \bm{u}_a) + \frac{1}{2}(\bm{x}_a - \bm{u}_a) ^\top \bm{\Lambda}_{ab}(\bm{x}_b - \bm{u}_b) + \\
 + \frac{1}{2}(\bm{x}_b - \bm{u}_b) ^\top \bm{\Lambda}_{ba}(\bm{x}_a - \bm{u}_a) + \frac{1}{2}(\bm{x}_b - \bm{u}_b) ^\top \bm{\Lambda}_{bb}(\bm{x}_b - \bm{u}_b) 
-\end{multline*}
+\end{multline}
 
 At this point we need to take advantage of the concept of completing the square. 
 \begin{theorem}
@@ -288,15 +281,13 @@ To leave the equation the same, we multiply by the identity matrix: $\bm{I} = \b
 \end{align*}
 \end{proof}
 
-Back to the problem at hand. Let us complete the square:
-
+Back to the problem at hand. Let us complete the square from equation \eqref{eq3}:
 \begin{multline*}
 \frac{1}{2}(\bm{x}_a - \bm{u}_a) ^\top \bm{\Lambda}_{aa}(\bm{x}_a - \bm{u}_a) + \frac{1}{2}(\bm{x}_a - \bm{u}_a) ^\top \bm{\Lambda}_{ab}(\bm{x}_b - \bm{u}_b) + \\
 + \frac{1}{2}(\bm{x}_b - \bm{u}_b) ^\top \bm{\Lambda}_{ba}(\bm{x}_a - \bm{u}_a) + \frac{1}{2}(\bm{x}_b - \bm{u}_b) ^\top \bm{\Lambda}_{bb}(\bm{x}_b - \bm{u}_b) 
 \end{multline*}
 
 Define the following recalling that all precision and covariance matrices are positive semidefinite:
-
 \begin{equation*}
 \begin{aligned}
 \bm{A} = \bm{\Lambda}_{bb}
@@ -309,13 +300,11 @@ Define the following recalling that all precision and covariance matrices are po
 \end{equation*}
 
 Note also that, using the fact that $\bm{\Lambda}_{ba}^\top = \bm{\Lambda}_{ab}$,
-
 \[
 \bm{b} = \bm{\Lambda}_{ba} (\bm{x}_a - \bm{\mu}_a) \implies \bm{b}^\top =  (\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{ab}
 \]
 
 We note,
-
 \begin{align*}
 \frac{1}{2} \bm{z}^\top \bm{A}\bm{z} &= \frac{1}{2} (\bm{x}_b - \bm{\mu}_b)^\top\bm{\Lambda}_{bb}(\bm{x}_b - \bm{\mu}_b) \\
 \bm{b}^\top\bm{z} &= (\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{ab}(\bm{x}_b - \bm{\mu}_b)\\
@@ -323,17 +312,126 @@ We note,
 \end{align*}
 
 And applying Theorem \eqref{thrm1},
-
-\begin{multline*}
-\frac{1}{2} \Big[ \big(  (\bm{x}_b - \bm{\mu}_b) \bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} (\bm{x}_a - \bm{\mu}_a) \big)^\top \bm{\Lambda}_{bb}  \big(  (\bm{x}_b - \bm{\mu}_b) \bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} (\bm{x}_a - \bm{\mu}_a) \big)\Big] \\
+\begin{multline}
+\label{eq4}
+\frac{1}{2} \Big[ \big(  (\bm{x}_b - \bm{\mu}_b) +\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} (\bm{x}_a - \bm{\mu}_a) \big)^\top \bm{\Lambda}_{bb}  \big(  (\bm{x}_b - \bm{\mu}_b) + \bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} (\bm{x}_a - \bm{\mu}_a) \big)\Big] \\
 + \frac{1}{2}(\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{aa}(\bm{x}_a - \bm{\mu}_a) - \frac{1}{2}(\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba}(\bm{x}_a - \bm{\mu}_a)
+\end{multline}
+
+Keeping track of the $-1$ that we left out when completing the square, and combining \eqref{eq4} with \eqref{eq2}, the full expression becomes:
+\begin{multline*}
+f(\bm{x}_a) = \frac{1}{Q} \int_{\mathbb{R}^{n-d}} \exp \left\{ -\frac{1}{2} \Big[ \big(  (\bm{x}_b - \bm{\mu}_b) +\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} (\bm{x}_a - \bm{\mu}_a) \big)^\top \bm{\Lambda}_{bb}  \big(  (\bm{x}_b - \bm{\mu}_b) +\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} (\bm{x}_a - \bm{\mu}_a) \big)\Big] \right. \\
+\left. - \frac{1}{2}(\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{aa}(\bm{x}_a - \bm{\mu}_a) + \frac{1}{2}(\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba}(\bm{x}_a - \bm{\mu}_a) \right\}\, d\bm{x}_b
 \end{multline*}
 
-The full expression is now:
+Since we are integrating over $\bm{x}_b$, all of the terms that contain $\bm{x}_a$ can be taken outside of the integral. Using $e^{ab} = e^ae^b$,
+\begin{multline}
+\label{eq5}
+f(\bm{x}_a) = \frac{1}{Q} \exp \left\{-\frac{1}{2}(\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{aa}(\bm{x}_a - \bm{\mu}_a) + \frac{1}{2}(\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba}(\bm{x}_a - \bm{\mu}_a) \right\}\\ \int_{\mathbb{R}^{n-d}} \exp \left\{ -\frac{1}{2} \Big[ \big(  (\bm{x}_b - \bm{\mu}_b) + \bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} (\bm{x}_a - \bm{\mu}_a) \big)^\top \bm{\Lambda}_{bb}  \big(  (\bm{x}_b - \bm{\mu}_b) +\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} (\bm{x}_a - \bm{\mu}_a) \big)\Big]
+   \right\}\, d\bm{x}_b
+\end{multline}
 
+We can remove the inner parentheses $ (\bm{x}_b - \bm{\mu}_b) + \bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} (\bm{x}_a - \bm{\mu}_a) $ and instead write $\bm{x}_b - \bm{\mu}_b + \bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} (\bm{x}_a - \bm{\mu}_a)$.
+
+We now observe that if we replace $ \bm{\mu}_b + \bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} (\bm{x}_a - \bm{\mu}_a) $ with $\bm{m}$, the above integral in equation \eqref{eq5} becomes
 \[
-
+\int_{\mathbb{R}^{n-d}} \exp \left\{ -\frac{1}{2} \Big[ \big(  (\bm{x}_b - \bm{m} \big)^\top \bm{\Lambda}_{bb}  \big(  (\bm{x}_b - \bm{m} \big)\Big]
+   \right\}\, d\bm{x}_b
 \]
+
+Note, that this integral is a multivariate normal kernel with mean vector $\bm{m}$ and covariance matrix $\bm{\Lambda}_{bb}$ and that we are integrating over the correct dimensionality of $\bm{x}_b$! Therefore, the integral evaluates to the normalizing constant
+\[
+(2\pi)^{\sfrac{n-d}{2}} \det(\bm{\Lambda}_{bb}^{-1})^{\sfrac{1}{2}}
+\]
+
+Plugging this into equation \eqref{eq5}, we write
+\begin{multline*}
+f(\bm{x}_a) = \frac{1}{Q} (2\pi)^{\sfrac{n-d}{2}} \det(\bm{\Lambda}_{bb}^{-1})^{\sfrac{1}{2}}\\  \exp \left\{\frac{1}{2}(\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{aa}(\bm{x}_a - \bm{\mu}_a) + \frac{1}{2}(\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba}(\bm{x}_a - \bm{\mu}_a) \right\}
+\end{multline*}
+
+Pulling out a $-\frac{1}{2}$, 
+\begin{multline*}
+f(\bm{x}_a) = \frac{1}{Q} (2\pi)^{\sfrac{n-d}{2}} \det(\bm{\Lambda}_{bb}^{-1})^{\sfrac{1}{2}}\\  \exp \left\{-\frac{1}{2}\left[ (\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{aa}(\bm{x}_a - \bm{\mu}_a) - (\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba}(\bm{x}_a - \bm{\mu}_a)\right]   \right\}
+\end{multline*}
+
+Then pulling out a $(\bm{x}_a - \bm{\mu}_a)^\top$ from the left and an $(\bm{x}_a - \bm{\mu}_a)$ from the right, we get
+\begin{multline}
+\label{eq6}
+f(\bm{x}_a) = \frac{1}{Q} (2\pi)^{\sfrac{n-d}{2}} \det(\bm{\Lambda}_{bb}^{-1})^{\sfrac{1}{2}}\\  \exp \left\{-\frac{1}{2}\left[ (\bm{x}_a - \bm{\mu}_a)^\top \bm{\Lambda}_{aa} - \bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba}(\bm{x}_a - \bm{\mu}_a)\right]   \right\}
+\end{multline}
+
+Equation \eqref{eq6} appears to be a MVN with mean vector $\bm{\mu}_a$ and covariance matrix $\bm{\Lambda}_{aa} - \bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba}$. Now, all that is left is to rewrite the covariance matrix and the normalization constant in terms of $\bm{\Sigma}$.
+
+Recall,
+\[
+\bm{\Lambda}=
+\begin{bmatrix}
+\bm{\Lambda}_{aa} & \bm{\Lambda}_{ab} \\
+\bm{\Lambda}_{ba} & \bm{\Lambda}_{bb}
+\end{bmatrix}=
+\begin{bmatrix}
+\bm{\Sigma}_{aa} & \bm{\Sigma}_{ab} \\
+\bm{\Sigma}_{ba} & \bm{\Sigma}_{bb}
+\end{bmatrix}^{-1}=
+\bm{\Sigma}^{-1}
+\]
+
+Thus, $\bm{\Lambda}^{-1} = \bm{\Sigma}$ and
+\[
+\begin{bmatrix}
+\bm{\Lambda}_{aa} & \bm{\Lambda}_{ab} \\
+\bm{\Lambda}_{ba} & \bm{\Lambda}_{bb}
+\end{bmatrix}^{-1}=
+\begin{bmatrix}
+\bm{\Sigma}_{aa} & \bm{\Sigma}_{ab} \\
+\bm{\Sigma}_{ba} & \bm{\Sigma}_{bb}
+\end{bmatrix}
+\]
+
+We now need a result from linear algebra.
+
+\begin{theorem}
+\label{thrm3}
+For a block matrix 
+\[
+\bm{M} = \begin{bmatrix}
+\bm{A} & \bm{B} \\
+\bm{C} & \bm{D}
+\end{bmatrix}
+\]
+where $\bm{M}$ is symmetric, positive definite, we can define $\bm{M}^{-1}$ using the Shur complement of $\bm{D}$ in $\bm{M}$, $(\bm{A} - \bm{B}\bm{D}^{-1}\bm{C}) ^{-1}$:
+\[
+\begin{bmatrix}
+\bm{A} & \bm{B} \\
+\bm{C} & \bm{D}
+\end{bmatrix}^{-1} = \begin{bmatrix}
+(\bm{A} - \bm{B}\bm{D}^{-1}\bm{C}) ^{-1} & -(\bm{A} - \bm{B}\bm{D}^{-1}\bm{C}) ^{-1}\bm{B}\bm{D}^{-1} \\
+-\bm{D}\bm{C}(\bm{A} - \bm{B}\bm{D}^{-1}\bm{C}) ^{-1} & \bm{D}^{-1} + \bm{D}^{-1}\bm{C}(\bm{A} - \bm{B}\bm{D}^{-1}\bm{C}) ^{-1}\bm{B}\bm{D}^{-1}
+\end{bmatrix}
+\]
+\end{theorem}
+
+Using Theorem \eqref{thrm3}, we write
+\[
+\begin{bmatrix}
+\bm{\Sigma}_{aa} & \bm{\Sigma}_{ab} \\
+\bm{\Sigma}_{ba} & \bm{\Sigma}_{bb}
+\end{bmatrix}=
+\begin{bmatrix}
+\bm{\Lambda}_{aa} & \bm{\Lambda}_{ab} \\
+\bm{\Lambda}_{ba} & \bm{\Lambda}_{bb}
+\end{bmatrix}^{-1}=
+\begin{bmatrix}
+ &  \\
+ & 
+\end{bmatrix}
+\]
+
+\section{Conditional of multivariate normal}
+
+
+
+
 
 
 
