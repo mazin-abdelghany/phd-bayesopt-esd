@@ -179,19 +179,19 @@ Now, we need to introduce the concept of the precision matrix $\bm{\Lambda}$. Th
 Now we can rewrite the above as:
 \begin{equation}
 \label{eq2}
-f(\bm{x}_a) = \int_{\mathbb{R}^{(n-d)}} \frac{1}{ Q } \exp \left\{-\frac{1}{2} \left(
+f(\bm{x}_a) = \int_{\mathbb{R}^{(n-d)}} \frac{1}{ Q } \exp \left\{-\frac{1}{2} 
 \begin{bmatrix}
 \bm{x}_a - \bm{u}_a  \\
 \bm{x}_b - \bm{u}_b
-\end{bmatrix}\right)^\top 
+\end{bmatrix}^\top 
 \begin{bmatrix}
 \bm{\Lambda}_{aa} & \bm{\Lambda}_{ab} \\
 \bm{\Lambda}_{ba} & \bm{\Lambda}_{bb}
 \end{bmatrix}
-\left(\begin{bmatrix}
+\begin{bmatrix}
 \bm{x}_a - \bm{u}_a  \\
 \bm{x}_b - \bm{u}_b
-\end{bmatrix}\right)  \right\}\, d\bm{x}_b
+\end{bmatrix}  \right\}\, d\bm{x}_b
 \end{equation}
 
 It is important to note that $\bm{\Lambda}_{aa} \neq \bm{\Sigma}_{aa}^{-1}$ but rather that $\bm{\Lambda}=\bm{\Sigma}^{-1}$!
@@ -489,7 +489,7 @@ We can now rewrite equation \eqref{eq6} as
 \begin{align}
 f(\bm{x}_a) &= \frac{1}{(2\pi)^{\frac{-d}{2}}\det(\bm{\Sigma}_{aa})^{-\sfrac{1}{2}}}  \exp \left\{-\frac{1}{2}\left[ (\bm{x}_a - \bm{\mu}_a)^\top \underbrace{\bm{\Lambda}_{aa} - \bm{\Lambda}_{ab}\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba}}_{\bm{\Sigma}_{aa}^{-1}}(\bm{x}_a - \bm{\mu}_a)\right]   \right\}\\
 \label{eq10}
-&=\frac{1}{(2\pi)^{\frac{-d}{2}}\det(\bm{\Sigma}_{aa})^{-\sfrac{1}{2}}}  \exp \left\{-\frac{1}{2}\left[ (\bm{x}_a - \bm{\mu}_a)^\top \bm{\Sigma}_{aa}^{-1}(\bm{x}_a - \bm{\mu}_a)\right]   \right\}
+&=\frac{1}{(2\pi)^{\frac{d}{2}}\det(\bm{\Sigma}_{aa})^{\sfrac{1}{2}}}  \exp \left\{-\frac{1}{2}\left[ (\bm{x}_a - \bm{\mu}_a)^\top \bm{\Sigma}_{aa}^{-1}(\bm{x}_a - \bm{\mu}_a)\right]   \right\}
 \end{align}
 
 Recall that we defined $\bm{x}_a$ as a multivariate normal random vector in $\mathbb{R}^d$. Therefore, miraculously, the exponent in the normalizing constant is correct! Furthermore, it is clear that the last equation \eqref{eq10}, is the multivariate normal pdf with mean vector $\bm{\mu}_a$ and covariance matrix $\bm{\Sigma}_{aa}$. Thus,
@@ -521,7 +521,67 @@ This new partitioned vector should have a multivariate normal distribution denot
 \end{bmatrix} \right)
 \end{equation}
 
-We 
+We now are looking to solve for $p(\bm{x}_a \,|\, \bm{x}_b)$. Using Bayes' theorem, we have
+\[p(\bm{x}_a \,|\, \bm{x}_b) = \frac{p(\bm{x}_a, \bm{x}_b)}{p(\bm{x}_b)} \propto p(\bm{x}_a, \bm{x}_b) \]
+
+Using the definition of the pdf of a multivariate normal and the proof of the marginal distribution of a multivariate normal that was just proven, we write,
+\begin{align*}
+p(\bm{x}_a \,|\, \bm{x}_b) &= \frac{
+\frac{1}{(2\pi)^{\frac{n}{2}}\det(\bm{\Sigma})^{\sfrac{1}{2}}}  \exp \left\{-\frac{1}{2}\left[ (\bm{x} - \bm{\mu})^\top \bm{\Sigma}^{-1}(\bm{x}- \bm{\mu})\right]   \right\}
+}{
+\frac{1}{(2\pi)^{\frac{n-d}{2}}\det(\bm{\Sigma}_{bb})^{\sfrac{1}{2}}}  \exp \left\{-\frac{1}{2}\left[ (\bm{x}_b - \bm{\mu}_b)^\top \bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{\mu}_b)\right]   \right\}
+}
+\end{align*}
+
+Clean up the fraction and combine the exponents.
+\begin{multline*}
+=\frac{(2\pi)^{\frac{n-d}{2}}}{(2\pi)^{\frac{n}{2}}}\frac{\det(\bm{\Sigma}_{bb})^{\sfrac{1}{2}}}{\det(\bm{\Sigma})^{\sfrac{1}{2}}}
+\exp\left\{
+-\frac{1}{2}\left[ (\bm{x} - \bm{\mu})^\top \bm{\Sigma}^{-1}(\bm{x}- \bm{\mu})\right] \right. \\ \left. +\frac{1}{2}\left[ (\bm{x}_b - \bm{\mu}_b)^\top \bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{\mu}_b)\right]
+\right\}
+\end{multline*}
+
+We can use the same method of partitioning as equation \eqref{eq2} to write
+\begin{multline*}
+=\frac{1}{(2\pi)^{\frac{d}{2}}}\frac{\det(\bm{\Sigma}_{bb})^{\sfrac{1}{2}}}{\det(\bm{\Sigma})^{\sfrac{1}{2}}}
+\exp\left\{
+-\frac{1}{2} \begin{bmatrix}
+\bm{x}_a - \bm{u}_a  \\
+\bm{x}_b - \bm{u}_b
+\end{bmatrix}^\top 
+\begin{bmatrix}
+\bm{\Lambda}_{aa} & \bm{\Lambda}_{ab} \\
+\bm{\Lambda}_{ba} & \bm{\Lambda}_{bb}
+\end{bmatrix}
+\begin{bmatrix}
+\bm{x}_a - \bm{u}_a  \\
+\bm{x}_b - \bm{u}_b
+\end{bmatrix} \right. \\ \left. +\frac{1}{2}\left[ (\bm{x}_b - \bm{\mu}_b)^\top \bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{\mu}_b)\right]
+\right\}
+\end{multline*}
+
+Removing the normalization constant for ease, and expanding the matrix multiplications as we did above in equation \eqref{eq3},
+\begin{multline*}
+\exp
+\left\{
+-\frac{1}{2} 
+\left(
+(\bm{x}_a - \bm{u}_a) ^\top \bm{\Lambda}_{aa}(\bm{x}_a - \bm{u}_a) + (\bm{x}_a - \bm{u}_a) ^\top \bm{\Lambda}_{ab}(\bm{x}_b - \bm{u}_b) + 
+\right.\right.\\
++ (\bm{x}_b - \bm{u}_b) ^\top \bm{\Lambda}_{ba}(\bm{x}_a - \bm{u}_a) + (\bm{x}_b - \bm{u}_b) ^\top \bm{\Lambda}_{bb}(\bm{x}_b - \bm{u}_b) 
+\\\left.\left.
++\frac{1}{2}(\bm{x}_b - \bm{\mu}_b)^\top \bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{\mu}_b)
+\right)
+\right\}
+\end{multline*}
+
+
+
+
+
+
+
+
 
 
 
