@@ -1,0 +1,5 @@
+How to hide or disable the address bar on Edge?
+
+In PowerShell:
+
+'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe' --app=file:///C:/Users/mazin/OneDrive/Desktop/phd-intro-work/2025-12_Week-6/group-meeting-presentation/GPGO_bayesian-optimization.html#1
