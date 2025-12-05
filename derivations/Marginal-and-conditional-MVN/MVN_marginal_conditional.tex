@@ -5,6 +5,11 @@
 \usepackage{amsthm}
 \usepackage{bm}
 \usepackage{xfrac}
+\usepackage{ulem}
+\usepackage{mathtools}
+
+\usepackage[sorting=none]{biblatex} % Imports biblatex package
+\addbibresource{references.bib} % Import the bibliography file
 
 \usepackage{hyperref}
 \hypersetup{colorlinks=true, linkcolor=blue}
@@ -311,7 +316,7 @@ We note,
 \bm{c} &=  \frac{1}{2}(\bm{x}_a - \bm{\mu}_a)^\top\bm{\Lambda}_{aa} (\bm{x}_a - \bm{\mu}_a)
 \end{align*}
 
-And applying Theorem \eqref{thrm1},
+And applying Theorem \ref{thrm1},
 \begin{multline}
 \label{eq4}
 \frac{1}{2} \Big[ \big(  (\bm{x}_b - \bm{\mu}_b) +\bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} (\bm{x}_a - \bm{\mu}_a) \big)^\top \bm{\Lambda}_{bb}  \big(  (\bm{x}_b - \bm{\mu}_b) + \bm{\Lambda}_{bb}^{-1}\bm{\Lambda}_{ba} (\bm{x}_a - \bm{\mu}_a) \big)\Big] \\
@@ -411,7 +416,7 @@ We can define $\bm{M}^{-1}$ using the Shur complement, $\bm{D}$ in $\bm{M}$: $(\
 \]
 \end{theorem}
 
-Using Theorem \eqref{thrm3}, we write
+Using Theorem \ref{thrm3}, we write
 \begin{multline}
 \begin{bmatrix}
 \bm{\Sigma}_{aa} & \bm{\Sigma}_{ab} \\
@@ -455,7 +460,7 @@ From equation \eqref{eq6}, we pull the constant, and replace $Q$ with its value,
 \frac{1}{Q} (2\pi)^{\frac{n-d}{2}} \det((\bm{\Lambda}_{bb}^{-1})^{\sfrac{1}{2}}) &= (2\pi)^{\frac{-n}{2}} \det(\bm{\Sigma})^{-\sfrac{1}{2}} (2\pi)^{\frac{n-d}{2}} \det((\bm{\Lambda}_{bb}^{-1})^{\sfrac{1}{2}})
 \end{align}
 
-Using theorem \eqref{thrm4}, the determinant of the block matrix $\bm{\Sigma}$ is
+Using theorem \ref{thrm4}, the determinant of the block matrix $\bm{\Sigma}$ is
 \[\det(\bm{\Sigma}) = \det(\bm{\Sigma}_{aa})\det(\Sigma_{bb} - \bm{\Sigma}_{ba}\bm{\Sigma}_{aa}^{-1}\bm{\Sigma}_{ab})\]
 
 Plugging this into equation \eqref{eq8} and distributing the exponent $-\sfrac{1}{2}$, we can write,
@@ -561,74 +566,245 @@ We can use the same method of partitioning as equation \eqref{eq2} to write
 \end{multline*}
 
 Removing the normalization constant for ease, and expanding the matrix multiplications as we did above in equation \eqref{eq3},
-\begin{multline*}
+\begin{multline}
+\label{eq12}
 \exp
 \left\{
 -\frac{1}{2} 
 \left(
-(\bm{x}_a - \bm{u}_a) ^\top \bm{\Lambda}_{aa}(\bm{x}_a - \bm{u}_a) + (\bm{x}_a - \bm{u}_a) ^\top \bm{\Lambda}_{ab}(\bm{x}_b - \bm{u}_b) + 
+(\bm{x}_a - \bm{u}_a) ^\top \bm{\Lambda}_{aa}(\bm{x}_a - \bm{u}_a) + (\bm{x}_a - \bm{u}_a) ^\top \bm{\Lambda}_{ab}(\bm{x}_b - \bm{u}_b) 
 \right.\right.\\
 + (\bm{x}_b - \bm{u}_b) ^\top \bm{\Lambda}_{ba}(\bm{x}_a - \bm{u}_a) + (\bm{x}_b - \bm{u}_b) ^\top \bm{\Lambda}_{bb}(\bm{x}_b - \bm{u}_b) 
 \\\left.\left.
 +\frac{1}{2}(\bm{x}_b - \bm{\mu}_b)^\top \bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{\mu}_b)
 \right)
 \right\}
+\end{multline}
+
+Note that 
+\[
+\underbrace{(\bm{x}_b - \bm{u}_b) ^\top}_{1 \times (n-d)}
+\underbrace{\bm{\Lambda}_{ba}(\bm{x}_a }_{(n-d) \times d}
+- \underbrace{\bm{u}_a)}_{d \times 1}
+\]
+is a scalar quantity. Therefore, we can transpose it without concern that it will change the value of the above expression \eqref{eq12}. Thus, we can write,
+\begin{align*}
+\left[(\bm{x}_b - \bm{u}_b) ^\top \bm{\Lambda}_{ba}(\bm{x}_a - \bm{u}_a)\right]^\top &= (\bm{x}_a - \bm{u}_a)^\top \bm{\Lambda}_{ba}^\top(\bm{x}_b - \bm{u}_b) \\
+&\text{Using } \bm{\Lambda}_{ba}^\top = \bm{\Lambda}_{ab} \text{ by symmetry}\\
+&=(\bm{x}_a - \bm{u}_a)^\top \bm{\Lambda}_{ab}(\bm{x}_b - \bm{u}_b)
+\end{align*}
+
+There are now $2(\bm{x}_a - \bm{u}_a)^\top \bm{\Lambda}_{ab}(\bm{x}_b - \bm{u}_b)$ in expression \eqref{eq12}
+\begin{multline*}
+\exp
+\left\{
+-\frac{1}{2} 
+\left(
+(\bm{x}_a - \bm{u}_a) ^\top \bm{\Lambda}_{aa}(\bm{x}_a - \bm{u}_a) + 2(\bm{x}_a - \bm{u}_a) ^\top \bm{\Lambda}_{ab}(\bm{x}_b - \bm{u}_b) 
+\right.\right.\\
+ + (\bm{x}_b - \bm{u}_b) ^\top \bm{\Lambda}_{bb}(\bm{x}_b - \bm{u}_b) 
+\\\left.\left.
++\frac{1}{2}(\bm{x}_b - \bm{\mu}_b)^\top \bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{\mu}_b)
+\right)
+\right\}
 \end{multline*}
 
+Again using Theorem \ref{thrm3}, 
+\begin{multline*}
+\begin{bmatrix}
+\bm{\Sigma}_{aa} & \bm{\Sigma}_{ab} \\
+\bm{\Sigma}_{ba} & \bm{\Sigma}_{bb}
+\end{bmatrix}^{1}=
+\begin{bmatrix}
+\bm{\Lambda}_{aa} & \bm{\Lambda}_{ab} \\
+\bm{\Lambda}_{ba} & \bm{\Lambda}_{bb}
+\end{bmatrix}\\=
+\begin{bmatrix}
+(\bm{\Sigma}_{aa} - \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} ) ^{-1} & -(\bm{\Sigma}_{aa} - \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} ) ^{-1}\bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1} \\
+-\bm{\Sigma}_{bb}\bm{\Sigma}_{ba} (\bm{\Sigma}_{aa}- \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} ) ^{-1} & \bm{\Sigma}_{bb}^{-1} + \bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} (\bm{\Sigma}_{aa} - \bm{\Lambda}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} ) ^{-1}\bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}
+\end{bmatrix}
+\end{multline*}
 
+Plugging in,
+\begin{multline*}
+= \exp\left\{
+-\frac{1}{2}
+\left(
+(\bm{x}_a - \bm{u}_a) ^\top (\bm{\Sigma}_{aa} - \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} ) ^{-1}(\bm{x}_a - \bm{u}_a) 
+\right. \right. \\
+- 2(\bm{x}_a - \bm{u}_a) ^\top(\bm{\Sigma}_{aa} - \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} ) ^{-1}\bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{u}_b) 
+\\ \left.
++ (\bm{x}_b - \bm{u}_b) ^\top \bm{\Sigma}_{bb}^{-1} + \bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} (\bm{\Sigma}_{aa} - \bm{\Lambda}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} ) ^{-1}\bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{u}_b) \right)
+\\  \left. 
++\frac{1}{2}(\bm{x}_b - \bm{\mu}_b)^\top \bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{\mu}_b)
+\right\}
+\end{multline*}
 
+Multiplying out the third term in the exponent,
+\begin{multline*}
+= \exp
+\Bigg\{
+-\frac{1}{2}
+\left(
+(\bm{x}_a - \bm{u}_a) ^\top (\bm{\Sigma}_{aa} - \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} ) ^{-1}(\bm{x}_a - \bm{u}_a) 
+ \right. 
+\\
+- 2(\bm{x}_a - \bm{u}_a) ^\top(\bm{\Sigma}_{aa} - \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} ) ^{-1}\bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{u}_b) 
+\\ 
++ \uwave{(\bm{x}_b - \bm{u}_b) ^\top \bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{u}_b) }
+\\ \left.
++ (\bm{x}_b - \bm{u}_b) ^\top \left[ \bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} (\bm{\Sigma}_{aa} - \bm{\Lambda}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} ) ^{-1} \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\right](\bm{x}_b - \bm{u}_b) 
+\right)
+\\  \left. 
++\uwave{\frac{1}{2}(\bm{x}_b - \bm{\mu}_b)^\top \bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{\mu}_b)}
+\right\}
+\end{multline*}
 
+The two underlined terms cancel (when the $-\frac{1}{2}$) gets distributed, and we are left with
+\begin{multline}
+\label{eq13}
+= \exp
+\left\{
+-\frac{1}{2}
+\left(
+(\bm{x}_a - \bm{u}_a) ^\top (\bm{\Sigma}_{aa} - \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} ) ^{-1}(\bm{x}_a - \bm{u}_a) 
+\right. \right. 
+\\
+- 2(\bm{x}_a - \bm{u}_a) ^\top(\bm{\Sigma}_{aa} - \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} ) ^{-1}\bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{u}_b) 
+\\ \left. \left.
++ (\bm{x}_b - \bm{u}_b) ^\top \left[ \bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} (\bm{\Sigma}_{aa} - \bm{\Lambda}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} ) ^{-1} \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\right](\bm{x}_b - \bm{u}_b) 
+\right) \right.
+\bigg\}
+\end{multline}
 
+In order apply another result from linear algebra, we need to summarize equation \eqref{eq13} using the following definitions. Set
+\begin{equation}
+\label{def1}
+\begin{aligned}
+ \bm{a} = (\bm{x}_a - \bm{\mu}_a) \\
+\bm{d} = (\bm{x}_b - \bm{\mu}_b)
+\end{aligned} \qquad\qquad
+\begin{aligned}
+\bm{B} &= (\bm{\Sigma}_{aa} - \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} ) ^{-1}\\
+\bm{C} &= \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\\
+\bm{D} &= \bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba}
+\end{aligned}
+\end{equation}
 
+We also note that
+\begin{align*}
+\bm{C} &= \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\\
+\bm{C}^\top &= \left( \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1} \right)^\top\\
+&=\bm{\Sigma}_{bb}^{-\top} \bm{\Sigma}_{ab}^{-1} \\
+&\text{Transpose of symmetric matrix is that same matrix.}\\
+&\text{And note $\bm{\Sigma}_{ab}^{-1}  = \bm{\Sigma}_{ba}$}\\
+&=\bm{\Sigma}_{bb}^{-1} \bm{\Sigma}_{ba} = \bm{D}
+\end{align*}
 
+Rewriting equation \eqref{eq13} with these definitions \eqref{def1} and the replacement of $\bm{D}$ with $\bm{C}^\top$,
+\begin{equation}
+\label{eq14}
+\exp\left\{ -\frac{1}{2} \left( \bm{a}^\top\bm{B}\bm{a} - 2\bm{a}^\top\bm{B}\bm{C}\bm{d} + \bm{d}\bm{C}^\top\bm{B}\bm{C}\bm{d} \right) \right\}
+\end{equation}
 
+Note that $\bm{C}\bm{d}$ is a vector. Using the following theorem from linear algebra.
+\begin{theorem}
+\label{thrm5}
+For any vectors $\bm{u}$ and $\bm{v}$ and symmetric matrix $\bm{A}$:
+\[
+\bm{u}^\top\bm{A}\bm{u} - 2\bm{u}^\top\bm{A}\bm{v} + \bm{v}^\top\bm{A}\bm{v} = (\bm{u}^\top - \bm{v}^\top)\bm{A} (\bm{u} - \bm{v})
+\]
+\begin{proof}
+\begin{align*}
+\bm{u}^\top\bm{A}\bm{u} - 2\bm{u}^\top\bm{A}\bm{v} + \bm{v}^\top\bm{A}\bm{v} &= \bm{u}^\top\bm{A}\bm{u} -\bm{u}^\top\bm{A}\bm{v}-\bm{u}^\top\bm{A}\bm{v}  + \bm{v}^\top\bm{A}\bm{v}\\
+&=\bm{u}^\top\bm{A}(\bm{u} - \bm{b}) - \bm{u}^\top\bm{A}\bm{v} + \bm{v}^\top\bm{A}\bm{v}\\
+&=\bm{u}^\top\bm{A}(\bm{u} - \bm{b}) - (\bm{u}^\top - \bm{v}^\top)\bm{A}\bm{v}\\
+&=\bm{u}^\top\bm{A}(\bm{u} - \bm{b}) - \underbrace{(\bm{u} - \bm{v})^\top\bm{A}\bm{v}}_{\text{transpose}}\\
+&=\bm{u}^\top\bm{A}(\bm{u} - \bm{b}) - \bm{v}^\top\bm{A}(\bm{u} - \bm{v})\\
+&=(\bm{u}^\top\bm{A} - \bm{v}^\top\bm{A}) (\bm{u} - \bm{v})\\
+&=(\bm{u}^\top - \bm{v}^\top)\bm{A} (\bm{u} - \bm{v})
+\end{align*}
+\end{proof}
+\end{theorem}
 
+Call vector $\bm{C}\bm{d} = \bm{e}$ and rewrite equation \eqref{eq14},
+\begin{equation*}
+\exp\left\{ -\frac{1}{2} \left( \bm{a}^\top\bm{B}\bm{a} - 2\bm{a}^\top\bm{B}\bm{e} + \bm{d}\bm{C}^\top\bm{B}\bm{e} \right) \right\}
+\end{equation*}
 
+Using Theorem \ref{thrm5}, we have
+\[
+\exp\left\{ -\frac{1}{2} \left( \bm{a}^\top\bm{B}\bm{a} - 2\bm{a}^\top\bm{B}\bm{e} + \bm{d}\bm{C}^\top\bm{B}\bm{e} \right) \right\} = \exp\left\{ -\frac{1}{2}  (\bm{a}-\bm{e})^\top \bm{B} (\bm{a}-\bm{e})  \right\}
+\]
 
+Substitute back
+\begin{align*}
+&\begin{multlined}
+\exp\left\{ -\frac{1}{2}  ((\bm{x}_a - \bm{\mu}_a)-\bm{C}\bm{d})^\top \bm{B} ((\bm{x}_a - \bm{\mu}_a)-\bm{C}\bm{d})  \right\}
+\end{multlined} \\
+=&\begin{multlined}
+\exp\left\{ -\frac{1}{2}  ((\bm{x}_a - \bm{\mu}_a)-\bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{\mu}_b))^\top (\bm{\Sigma}_{aa} - \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} ) ^{-1} 
+\right.
+\\ \left.
+ ((\bm{x}_a - \bm{\mu}_a)-\bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{\mu}_b))  \right\} 
+\end{multlined}
+\end{align*}
 
+Pull out the minus sign to get the equation into the form $(x - \mu)$:
+\begin{multline}
+\label{eq16}
+\exp\left\{ -\frac{1}{2}  ((\bm{x}_a - (\bm{\mu}_a + \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{\mu}_b))^\top (\bm{\Sigma}_{aa} - \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} ) ^{-1} 
+\right.
+\\ 
+ ((\bm{x}_a - (\bm{\mu}_a + \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{\mu}_b))  \bigg\} 
+\end{multline}
 
+Equation \eqref{eq16} now looks like the pdf of a multivariate normal distribution with mean vector
+\[
+ \bm{\mu}_a + \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{\mu}_b)
+\]
 
+and covariance matrix
+\[
+\bm{\Sigma}_{aa} - \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} 
+\]
 
+All that is left is to deal with the normalizing constant we left up above.
+\[
+\frac{1}{(2\pi)^{\frac{d}{2}}} \cdot \frac{\det(\bm{\Sigma_{bb}})^{\frac{1}{2}}}{\det(\bm{\Sigma})^{\frac{1}{2}}}
+\]
 
+Using Theorem \ref{thrm4},
+\[
+\det(\bm{\Sigma}) = \det\begin{bmatrix}
+\bm{\Sigma}_{aa} & \bm{\Sigma}_{ab} \\
+\bm{\Sigma}_{ba} & \bm{\Sigma}_{bb} \\
+\end{bmatrix} = \det(\bm{\Sigma}_{bb})\det(\bm{\Sigma}_{bb}-\bm{\Sigma}_{aa}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba})
+\]
+\begin{align}
+\label{eq18}
+&=\frac{1}{(2\pi)^{\frac{d}{2}}} \cdot \frac{\det(\bm{\Sigma}_{bb})^{\frac{1}{2}}}{\det(\bm{\Sigma}_{bb})^{\frac{1}{2}}\det(\bm{\Sigma}_{bb}-\bm{\Sigma}_{aa}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba})^{\frac{1}{2}}}\\
+&=\frac{1}{(2\pi)^{\frac{d}{2}}} \cdot \frac{1}{\det(\bm{\Sigma}_{bb}-\bm{\Sigma}_{aa}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba})^{\frac{1}{2}}}
+\end{align}
 
+Putting equations \eqref{eq16} and \eqref{eq18} together, we get
+\begin{multline}
+p(\bm{x}_a \, | \, \bm{x}_b) = \\
+\frac{1}{(2\pi)^{\frac{d}{2}}\det(\bm{\Sigma}_{bb}-\bm{\Sigma}_{aa}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba})^{\frac{1}{2}}} \cdot \\
+\exp\left\{ -\frac{1}{2}  ((\bm{x}_a - (\bm{\mu}_a + \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{\mu}_b))^\top (\bm{\Sigma}_{aa} - \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba} ) ^{-1} 
+\right.
+\\ 
+ ((\bm{x}_a - (\bm{\mu}_a + \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}(\bm{x}_b - \bm{\mu}_b))  \bigg\} 
+\end{multline}
 
+We can now read off the conditional mean vector and covariance matrix as
+\[\bm{\mu}_a + \bm{\Sigma}_{ab}\bm{\Sigma}_{bb}^{-1}\qquad\]
+and
+\[\bm{\Sigma}_{bb}-\bm{\Sigma}_{aa}\bm{\Sigma}_{bb}^{-1}\bm{\Sigma}_{ba}\qquad\square\]
 
+Credit for parts of the proofs above goes to the following \cite{machinelearningsim}, \cite{statproofbook}, \cite{wang2006} and \cite{murphy2012machine}.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+\printbibliography
 
 
 
