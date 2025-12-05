@@ -25,6 +25,8 @@
 
 \maketitle
 
+\tableofcontents
+
 \section{Background}
 
 Gaussian process regression relies on several special properties of multivariate normal (MVN) distributions. The two most important of those properties are that:
@@ -117,7 +119,7 @@ With this background in mind, we can proceed to show that
 \end{itemize}
 \end{enumerate}
 
-\section{Marginal of mulitvariate normal}
+\section{Marginal distribution of mulitvariate normal}
 
 Let us start with proof of the marginal mean vector and covariance matrix. The marginal pdf of $\bm{x}_a$ is:
 \begin{align*}
@@ -502,7 +504,7 @@ Recall that we defined $\bm{x}_a$ as a multivariate normal random vector in $\ma
 and likewise
 \[p(\bm{x}_{b}) \sim \mathcal{N}(\bm{\mu}_{b}, \bm{\Sigma}_{bb})\qquad\square\]
 
-\section{Conditional of multivariate normal}
+\section{Conditional distribution of multivariate normal}
 
 Remaining in the same setup, our multivariate normal random vector $\bm{x}\in\mathbb{R}^n$ has two multvariate normal random vector partitions $\bm{x}_a\in\mathbb{R}^d$ and $\bm{x}_b\in\mathbb{R}^{(n-d)}$.
 \[
