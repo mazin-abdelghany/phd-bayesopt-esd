@@ -10,7 +10,14 @@ RUN install2.r --error \
      rpact \
      profvis \
      tictoc \
-     gridExtra
+     gridExtra 
+
+RUN Rscript -e 'install.packages("devtools", dependencies = TRUE)'
+
+WORKDIR /project
+
+RUN chown -R rstudio:rstudio /project
+RUN chmod -R a+rwX /project
 
 ## install RStan
 # RUN Rscript -e 'Sys.setenv(DOWNLOAD_STATIC_LIBV8 = 1)'
