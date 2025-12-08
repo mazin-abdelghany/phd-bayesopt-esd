@@ -83,15 +83,15 @@ calc_bounds_pocock <- function(n_analyses = 3,
   if (sided == "one.sided") {
 
     # return the values of interest
-    return( list(upper_bounds = mid_ob_u,
-                 lower_bounds = c(mid_ob_l[1:n_analyses-1], mid_ob_u[n_analyses]),
+    return( list(upper_bounds = ub1,
+                 lower_bounds = c(lb1[1:n_analyses-1], ub1[n_analyses]),
                  simulation = sim) )
 
   } else {
 
     # return the values of interest
-    return( list(upper_bounds = mid_ob_u,
-                 lower_bounds = mid_ob_l,
+    return( list(upper_bounds = ub1,
+                 lower_bounds = lb1,
                  simulation = sim) )
 
   }
