@@ -2,13 +2,29 @@
 % Please edit documentation in R/calc_bounds_triangular.R
 \name{calc_bounds_triangular}
 \alias{calc_bounds_triangular}
-\title{Title}
+\title{Calculate triangular bounds for a group sequential clinical trial}
 \usage{
 calc_bounds_triangular(n_analyses = 3, alpha = 0.05, delta = 0.5)
 }
 \arguments{
-\item{delta}{}
+\item{n_analyses}{Integer indicating the number of interim analyses
+that will be performed in the group sequential design.}
+
+\item{alpha}{Type I error rate to be targeted when calculating the bounds.}
+
+\item{delta}{Alternative hypothesis under which to calculate the triangular
+boundary values.}
+}
+\value{
+A list of length 3 that contains the upper and lower triangular
+boundary values as well as the information fractions calculated at each
+interim analysis.
 }
 \description{
-Title
+Calculate triangular bounds for a group sequential clinical trial
+}
+\examples{
+calc_bounds_triangular <- function(n_analyses = 3,
+                                   alpha = 0.05,
+                                   delta = 0.5)
 }

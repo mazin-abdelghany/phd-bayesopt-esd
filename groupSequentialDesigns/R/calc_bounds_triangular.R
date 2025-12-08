@@ -1,13 +1,20 @@
-#' Title
+#' Calculate triangular bounds for a group sequential clinical trial
 #'
-#' @param n_analyses
-#' @param alpha
-#' @param delta
+#' @param n_analyses Integer indicating the number of interim analyses
+#' that will be performed in the group sequential design.
+#' @param alpha Type I error rate to be targeted when calculating the bounds.
+#' @param delta Alternative hypothesis under which to calculate the triangular
+#' boundary values.
 #'
-#' @returns
+#' @returns A list of length 3 that contains the upper and lower triangular
+#' boundary values as well as the information fractions calculated at each
+#' interim analysis.
 #' @export
 #'
 #' @examples
+#' calc_bounds_triangular <- function(n_analyses = 3,
+#'                                    alpha = 0.05,
+#'                                    delta = 0.5)
 
 calc_bounds_triangular <- function(n_analyses = 3,
                                    alpha = 0.05,
