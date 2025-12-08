@@ -2,7 +2,7 @@ Package: groupSequentialDesigns
 Title: Generate Group Sequential Designs
 Version: 0.0.0.9000
 Authors@R: 
-    person("Mazin", "Abdelghany", , , role = c("aut", "cre"))
+    person("Mazin", "Abdelghany", , "first.last@example.com", role = c("aut", "cre"))
 Description: Functions to generate group sequential designs using boundaries such as Pocock, O'Brien-Fleming, and triangular. 
 License: use_mit_license()
 Encoding: UTF-8
