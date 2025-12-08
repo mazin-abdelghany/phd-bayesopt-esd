@@ -1,7 +1,7 @@
 #' Calculate Pocock bounds for a group sequential clinical trial
 #'
-#' `calc_bounds_pocock` returns one- or two-sided boundary values for a group
-#' sequential clinical trial design at a specified \eqn{\alpha} and sample
+#' `calc_bounds_pocock` returns one- or two-sided Pocock boundary values for a
+#' group sequential clinical trial design at a specified \eqn{\alpha} and sample
 #' size using interval bisection.
 #'
 #' @param n_analyses Integer indicating the number of interim analyses
@@ -13,14 +13,18 @@
 #' @param sided A string "one.sided" or "two.sided" indicating whether the
 #' function returns one- or two-sided bounds. In one-sided bounds, the boundary
 #' values are equal at the last analysis.
-#' @returns A list of length three that contains the final upper and lower
-#' bounds calculated and the last simulation run. The simulation output is from
-#' `gsd_simulations` and shows the probability of stopping for futility and
-#' efficacy under both the null and alternative hypotheses specified. It also
-#' calculates the type I error (\eqn{\alpha}), the power (\eqn{1 - \beta}) where
-#' \eqn{\beta} is the type II error, the expected sample size, and the variance
-#' of the sample size.
+#'
+#' @returns A list of length 8 that contains the final upper and lower
+#' Pocock bounds calculated and the last simulation run. The simulation output
+#' is from `gsd_simulations` and shows the probability of stopping for futility
+#' and efficacy under both the null and alternative hypotheses specified. It
+#' also calculates the type I error (\eqn{\alpha}), the power (\eqn{1 - \beta})
+#' where \eqn{\beta} is the type II error, the expected sample size, and the
+#' variance of the sample size.
+#' @export
+#'
 #' @seealso [gsd_simulations()] for details on the simulation return.
+#'
 #' @examples
 #' calc_bounds_pocock(n_analyses = 3,
 #'                    alpha = 0.05,
