@@ -1,5 +1,9 @@
 #' Calculate triangular bounds for a group sequential clinical trial
 #'
+#' `calc_bounds_triangular` returns triangular boundary values for a group
+#' sequential clinical trial design at a specified \eqn{\alpha} and sample
+#' size using interval bisection.
+#'
 #' @param n_analyses Integer indicating the number of interim analyses
 #' that will be performed in the group sequential design.
 #' @param alpha Type I error rate to be targeted when calculating the bounds.

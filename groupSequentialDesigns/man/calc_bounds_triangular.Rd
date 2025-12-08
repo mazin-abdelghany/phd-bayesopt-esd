@@ -21,7 +21,9 @@ boundary values as well as the information fractions calculated at each
 interim analysis.
 }
 \description{
-Calculate triangular bounds for a group sequential clinical trial
+\code{calc_bounds_triangular} returns triangular boundary values for a group
+sequential clinical trial design at a specified \eqn{\alpha} and sample
+size using interval bisection.
 }
 \examples{
 calc_bounds_triangular <- function(n_analyses = 3,
