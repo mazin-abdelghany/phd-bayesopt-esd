@@ -1,0 +1,209 @@
+---
+title: "GSD and GP regression - week 6"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 4
+    toc_float: 
+      collapsed: false
+date: "2025-11-13"
+---
+
+```{css, echo=FALSE}
+#TOC {
+    max-width: fit-content;
+    white-space: nowrap;
+}
+  
+div:has(> #TOC) {
+    display: flex;
+    flex-direction: row-reverse;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# load required libraries
+library(mvtnorm)
+library(ggplot2)
+
+# set the seed
+set.seed(585883357)
+```
+
+# GSD simulations
+
+1. Design a trial, including boundaries
+2. Obtain the characteristics of this trial
+3. Estimate the expected sample size
+4. Modify the sample size to obtain the correct power
+
+The functions needed for the above steps are:
+
+1. `triangular_bounds()`
+2. `pocock_bounds()`
+3. `of_bounds()`
+4. `gsd_simulations()`
+
+
+
+
+
+## Calculate ESS, VSS, and power
+
+Calculate the boundaries.
+
+```{r}
+pocock_bounds <- pocock_bounds()
+of_bounds <- of_bounds()
+tri_bounds <- tri_bounds()
+```
+
+Get values for ESS, VSS, and power.
+
+First, generate $\delta$ vector.
+
+```{r}
+deltas <- seq(from = 0, to = 1, by = 0.001)
+```
+
+### Pocock
+
+```{r}
+pk_power <- vector(mode = "numeric", length = length(deltas))
+pk_ess <- vector(mode = "numeric", length = length(deltas))
+pk_vss <- vector(mode = "numeric", length = length(deltas))
+
+for (i in 1:length(deltas)) {
+  
+  sim <- gsd_simulations(upper_bounds = pocock_bounds$upper_bounds,
+                         lower_bounds = pocock_bounds$lower_bounds,
+                         alt_hypothesis = deltas[i])
+  
+  pk_power[i] <- sim$power
+  pk_ess[i] <- sim$expected_sample_size
+  pk_vss[i] <- sim$var_sample_size
+}
+```
+
+### O'Brien-Fleming
+
+```{r}
+of_power <- vector(mode = "numeric", length = length(deltas))
+of_ess <- vector(mode = "numeric", length = length(deltas))
+of_vss <- vector(mode = "numeric", length = length(deltas))
+
+for (i in 1:length(deltas)) {
+  
+  sim <- gsd_simulations(upper_bounds = of_bounds$upper_bounds,
+                         lower_bounds = of_bounds$lower_bounds,
+                         alt_hypothesis = deltas[i])
+  
+  of_power[i] <- sim$power
+  of_ess[i] <- sim$expected_sample_size
+  of_vss[i] <- sim$var_sample_size
+}
+```
+
+### Triangular
+
+```{r}
+tr_power <- vector(mode = "numeric", length = length(deltas))
+tr_ess <- vector(mode = "numeric", length = length(deltas))
+tr_vss <- vector(mode = "numeric", length = length(deltas))
+
+for (i in 1:length(deltas)) {
+  
+  sim <- gsd_simulations(upper_bounds = tri_bounds$upper_bounds,
+                         lower_bounds = tri_bounds$lower_bounds,
+                         alt_hypothesis = deltas[i])
+  
+  tr_power[i] <- sim$power
+  tr_ess[i] <- sim$expected_sample_size
+  tr_vss[i] <- sim$var_sample_size
+  
+}
+```
+
+### Plot the bounds
+
+```{r}
+ggplot() +
+  geom_line(mapping = aes(x = 1:3, y = pocock_bounds$upper_bounds, color = "Pocock"),
+            linetype = 2) +
+  geom_line(mapping = aes(x = 1:3, y = pocock_bounds$lower_bounds, color = "Pocock"),
+            linetype = 2) +
+  geom_line(mapping = aes(x = 1:3, y = of_bounds$upper_bounds, color = "O'Brien-Fleming")) +
+  geom_line(mapping = aes(x = 1:3, y = of_bounds$lower_bounds, color = "O'Brien-Fleming")) +
+  geom_line(mapping = aes(x = 1:3, y = tri_bounds$upper_bounds, color = "Triangular")) +
+  geom_line(mapping = aes(x = 1:3, y = tri_bounds$lower_bounds, color = "Triangular")) +
+  scale_color_manual(name = "Boundary types",
+                   breaks = c("Pocock", "O'Brien-Fleming", "Triangular"),
+                   values = c("Pocock" = "red", 
+                              "O'Brien-Fleming" = "blue", 
+                              "Triangular" = "purple")) +
+  labs(x = "Analysis Number", y = "Z score", 
+       title = "Boundary values for different equations")
+```
+
+
+### ESS
+
+```{r}
+ggplot() + 
+  geom_line(mapping = aes(x = deltas, y = pk_ess, color = "Pocock")) +
+  geom_line(mapping = aes(x = deltas, y = of_ess, color = "O'Brien-Fleming")) +
+  geom_line(mapping = aes(x = deltas, y = tr_ess, color = "Triangular")) +
+  scale_color_manual(name = "Boundary types",
+                     breaks = c("Pocock", "O'Brien-Fleming", "Triangular"),
+                     values = c("Pocock" = "red", 
+                                "O'Brien-Fleming" = "blue", 
+                                "Triangular" = "purple")) +
+  labs(x = "True \u03B4", y = "Expected sample size", 
+       title = "Expected sample size over range of true \u03B4 values")
+```
+
+
+### VSS
+
+```{r}
+ggplot() + 
+  geom_line(mapping = aes(x = deltas, y = sqrt(pk_vss), color = "Pocock")) +
+  geom_line(mapping = aes(x = deltas, y = sqrt(of_vss), color = "O'Brien-Fleming")) +
+  geom_line(mapping = aes(x = deltas, y = sqrt(tr_vss), color = "Triangular")) +
+  scale_color_manual(name = "Boundary types",
+                     breaks = c("Pocock", "O'Brien-Fleming", "Triangular"),
+                     values = c("Pocock" = "red", 
+                                "O'Brien-Fleming" = "blue", 
+                                "Triangular" = "purple")) +
+  labs(x = "True \u03B4", y = "Standard deviation of sample size", 
+       title = "Standard deviation of sample size over range of true \u03B4 values")
+```
+
+
+### Power
+
+```{r}
+ggplot() +
+  geom_line(mapping = aes(x = deltas, y = pk_power, color = "Pocock")) + 
+  geom_line(mapping = aes(x = deltas, y = of_power, color = "O'Brien-Fleming")) + 
+  geom_line(mapping = aes(x = deltas, y = tr_power, color = "Triangular")) +
+  scale_color_manual(name = "Boundary types",
+                     breaks = c("Pocock", "O'Brien-Fleming", "Triangular"),
+                     values = c("Pocock" = "red",
+                                "O'Brien-Fleming" = "blue",
+                                "Triangular" = "purple")) +
+  labs(x = "Alternative hypothesis = \u03B4", 
+       y = "Power", 
+       title = "Power for different boundaries")
+```
+
+
+
+
+
+
+
+
+
