@@ -1,6 +1,7 @@
 /2025-11_Week-5/GP_regression_gpflow/.ipynb_checkpoints/
 /2025-12_Week-6/.ipynb_checkpoints/
 /groupSequentialDesigns/.Rproj.user
+.DS_Store
 
 # ignore all LaTeX output files except .tex, .pdf, and .bib
 /derivations/**/*.aux
