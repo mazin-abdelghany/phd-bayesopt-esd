@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.6"
+__generated_with = "0.24.0"
 app = marimo.App(width="medium")
 
 
@@ -118,58 +118,128 @@ def _(mo):
 
 
 @app.cell
-def _(fn_min, fp, sim, ss):
-    def obj_f(
-            mu,
-            upper_bounds,
-            lower_bounds,
-            n_patients,
-            n_analyses,
-            target_power,
-            target_alpha,
-            null_hypothesis,
-            alternative_hypothesis,
-            variance):
+def _(mo):
+    scaled_loss = mo.ui.switch(label="Scaled loss")
+    return (scaled_loss,)
 
-        trial_sim = sim.group_sequential_designs(
-            n_analyses = n_analyses,
-            upper_bounds = upper_bounds,
-            lower_bounds = lower_bounds,
-            n_patients = n_patients, 
-            null_hypothesis = null_hypothesis,
-            alt_hypothesis = alternative_hypothesis,
-            variance = variance
-        )
 
-        alpha_prime = trial_sim[0]
-        beta_prime = 1-trial_sim[1]
+@app.cell
+def _(mo, scaled_loss):
+    mo.vstack([scaled_loss, mo.md(f"Has value: {scaled_loss.value}")])
+    return
 
-        max_ess = ss.max_ess(
-            n_analyses = n_analyses,
-            upper_bounds = upper_bounds,
-            lower_bounds = lower_bounds,
-            n_patients = n_patients,
-            null_hypothesis = null_hypothesis,
-            variance = variance
-        )
 
-        penalty = fp.smooth_penalty(
-            mu = mu,
-            power = target_power,
-            alpha = target_alpha,
-            beta_prime = beta_prime,
-            alpha_prime = alpha_prime
-        )
-
-        f_val = fn_min.function_to_minimize(max_ess_val = max_ess/mu, penalty = penalty)
-
-        return (
-            alpha_prime,
-            1-beta_prime,
-            max_ess,
-            f_val
-        )
-
+@app.cell
+def _(fn_min, fp, scaled_loss, sim, ss):
+    if scaled_loss.value:
+        def obj_f(
+                mu,
+                upper_bounds,
+                lower_bounds,
+                n_patients,
+                n_analyses,
+                target_power,
+                target_alpha,
+                null_hypothesis,
+                alternative_hypothesis,
+                variance,
+                min_sample_size,
+                max_sample_size):
+    
+            trial_sim = sim.group_sequential_designs(
+                n_analyses = n_analyses,
+                upper_bounds = upper_bounds,
+                lower_bounds = lower_bounds,
+                n_patients = n_patients, 
+                null_hypothesis = null_hypothesis,
+                alt_hypothesis = alternative_hypothesis,
+                variance = variance
+            )
+    
+            alpha_prime = trial_sim[0]
+            beta_prime = 1-trial_sim[1]
+    
+            max_ess = ss.max_ess(
+                n_analyses = n_analyses,
+                upper_bounds = upper_bounds,
+                lower_bounds = lower_bounds,
+                n_patients = n_patients,
+                null_hypothesis = null_hypothesis,
+                variance = variance
+            )
+    
+            penalty = fp.scaled_step(
+                mu = mu,
+                power = target_power,
+                alpha = target_alpha,
+                alpha_prime = alpha_prime,
+                beta_prime = beta_prime,
+                n_analyses=n_analyses,
+                min_sample_size=min_sample_size,
+                max_sample_size=max_sample_size,
+                max_ess=max_ess,
+                alpha_factor=1,
+                beta_factor=1,
+                max_ess_factor=1
+            )
+    
+            return (
+                alpha_prime,
+                1-beta_prime,
+                max_ess,
+                penalty
+            )
+    else:
+        def obj_f(
+                mu,
+                upper_bounds,
+                lower_bounds,
+                n_patients,
+                n_analyses,
+                target_power,
+                target_alpha,
+                null_hypothesis,
+                alternative_hypothesis,
+                variance):
+    
+            trial_sim = sim.group_sequential_designs(
+                n_analyses = n_analyses,
+                upper_bounds = upper_bounds,
+                lower_bounds = lower_bounds,
+                n_patients = n_patients, 
+                null_hypothesis = null_hypothesis,
+                alt_hypothesis = alternative_hypothesis,
+                variance = variance
+            )
+    
+            alpha_prime = trial_sim[0]
+            beta_prime = 1-trial_sim[1]
+    
+            max_ess = ss.max_ess(
+                n_analyses = n_analyses,
+                upper_bounds = upper_bounds,
+                lower_bounds = lower_bounds,
+                n_patients = n_patients,
+                null_hypothesis = null_hypothesis,
+                variance = variance
+            )
+    
+            penalty = fp.smooth_penalty(
+                mu = mu,
+                power = target_power,
+                alpha = target_alpha,
+                alpha_prime = alpha_prime,
+                beta_prime = beta_prime
+            )
+    
+            f_val = fn_min.function_to_minimize(max_ess_val = max_ess/mu, penalty = penalty)
+    
+            return (
+                alpha_prime,
+                1-beta_prime,
+                max_ess,
+                f_val
+            )
     return (obj_f,)
 
 
@@ -214,7 +284,9 @@ def _(
         target_alpha = target_alpha,
         null_hypothesis = delta0,
         alternative_hypothesis = delta1,
-        variance = sigma2
+        variance = sigma2,
+        min_sample_size=20,
+        max_sample_size=160
     )
 
     tri_params = fmt_bd.boundaries_to_reverse(
@@ -416,8 +488,8 @@ def _(mo):
 
 @app.cell
 def _():
-    n_experiments = 5
-    n_loops = 5000
+    n_experiments = 50
+    n_loops = 500
     return n_experiments, n_loops
 
 
@@ -777,6 +849,7 @@ def _(
     radio,
     scale_input,
     scale_output,
+    scaled_loss,
     search_space,
     short_seed_list,
     sigma2,
@@ -820,19 +893,35 @@ def _(
 
             bounds = fmt_bd.reverse_to_boundaries(params = bounds, K = num_analyses.value)
 
-            _, _, _, initial_y_new = obj_f(
-                mu = mu,
-                upper_bounds = bounds[0],
-                lower_bounds = bounds[1],
-                n_analyses = num_analyses.value,
-                n_patients = sample_size,
-                target_power = target_power,
-                target_alpha = target_alpha,
-                null_hypothesis = delta0,
-                alternative_hypothesis = delta1,
-                variance = sigma2
-            )
-
+            if scaled_loss.value:
+                _, _, _, initial_y_new = obj_f(
+                    mu = mu,
+                    upper_bounds = bounds[0],
+                    lower_bounds = bounds[1],
+                    n_analyses = num_analyses.value,
+                    n_patients = sample_size,
+                    target_power = target_power,
+                    target_alpha = target_alpha,
+                    null_hypothesis = delta0,
+                    alternative_hypothesis = delta1,
+                    variance = sigma2,
+                    min_sample_size=search_space.lower[(2 * num_analyses.value) - 1],
+                    max_sample_size=search_space.upper[(2 * num_analyses.value) - 1]
+                )
+            else:
+                _, _, _, initial_y_new = obj_f(
+                    mu = mu,
+                    upper_bounds = bounds[0],
+                    lower_bounds = bounds[1],
+                    n_analyses = num_analyses.value,
+                    n_patients = sample_size,
+                    target_power = target_power,
+                    target_alpha = target_alpha,
+                    null_hypothesis = delta0,
+                    alternative_hypothesis = delta1,
+                    variance = sigma2
+                )
+            
             initial_y.append(initial_y_new)
 
         # turn y into [N,1] column vector
@@ -959,18 +1048,34 @@ def _(
             bounds = fmt_bd.reverse_to_boundaries(params = x_new_bounds, K = num_analyses.value)
             bounds_list = np.concatenate( (bounds[0], bounds[1][0:num_analyses.value-1]) )
 
-            alpha, power, max_ess, y_new = obj_f(
-                mu = mu,
-                upper_bounds = bounds[0],
-                lower_bounds = bounds[1],
-                n_analyses = num_analyses.value,
-                n_patients = x_new_sample_size,
-                target_power = target_power,
-                target_alpha = target_alpha,
-                null_hypothesis = delta0,
-                alternative_hypothesis = delta1,
-                variance = sigma2
-            )
+            if scaled_loss.value:
+                alpha, power, max_ess, y_new = obj_f(
+                    mu = mu,
+                    upper_bounds = bounds[0],
+                    lower_bounds = bounds[1],
+                    n_analyses = num_analyses.value,
+                    n_patients = x_new_sample_size,
+                    target_power = target_power,
+                    target_alpha = target_alpha,
+                    null_hypothesis = delta0,
+                    alternative_hypothesis = delta1,
+                    variance = sigma2,
+                    min_sample_size=search_space.lower[(2 * num_analyses.value) - 1],
+                    max_sample_size=search_space.upper[(2 * num_analyses.value) - 1]
+                )
+            else:
+                alpha, power, max_ess, y_new = obj_f(
+                    mu = mu,
+                    upper_bounds = bounds[0],
+                    lower_bounds = bounds[1],
+                    n_analyses = num_analyses.value,
+                    n_patients = x_new_sample_size,
+                    target_power = target_power,
+                    target_alpha = target_alpha,
+                    null_hypothesis = delta0,
+                    alternative_hypothesis = delta1,
+                    variance = sigma2
+                )
 
             # collect the boundaries using the labels
             for _i in range(len(bounds_list)):
@@ -1054,11 +1159,14 @@ def _(
     radio,
     scale_input,
     scale_output,
+    scaled_loss,
 ):
     file_name = "bo_smooth"
 
     file_name += "_" + str(n_experiments) + "x" + str(n_loops)
 
+    if scaled_loss.value:
+        file_name += "_scaled_loss"
     if scale_input.value:
         file_name += "_x_min_max"
     if scale_output.value:
