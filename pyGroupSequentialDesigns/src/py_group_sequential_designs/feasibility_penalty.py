@@ -110,44 +110,32 @@ def low_repulsion(
     else:
         return mu * ((alpha_prime - alpha)**4 + (beta_prime - beta)**4)
 
-# penalty with cliff and high repulsion
-def absolute_cliff(
+# step function penalty for alpha and beta and scaled loss for all components
+def scaled_step(
         mu,
         power,
         alpha,
         alpha_prime,
         beta_prime,
-        alpha_epsilon = 0.01,
-        beta_epsilon = 0.05,
-        scaled = False,
-        scale_factor = 20):
+        n_analyses,
+        min_sample_size,
+        max_sample_size,
+        max_ess,
+        alpha_epsilon = 0.005,
+        beta_epsilon = 0.01,
+        alpha_factor = 10,
+        beta_factor = 10,
+        max_ess_factor = 10):
     
     # calculate beta from power
     beta = 1-power
 
-    alpha_met = (-alpha_epsilon <= alpha_prime - alpha) & (alpha_prime - alpha <= 0)
-    beta_met = (-beta_epsilon <= beta_prime - beta) & (beta_prime - beta <= 0)
+    alpha_met = (alpha_prime <= alpha) & ( (alpha - alpha_epsilon) <= alpha_prime )
+    beta_met = (beta_prime <= beta) & ( (beta - beta_epsilon) <= beta_prime )
 
-    # find the maximum alpha and beta
-    if alpha <= 0.5:
-        max_alpha = abs(alpha - 1)
-    else:
-        max_alpha = abs(alpha)
-    
-    if beta <= 0.5:
-        max_beta = abs(beta - 1)
-    else:
-        max_beta = abs(beta)
+    loss_alpha = 0 if alpha_met else 1
+    loss_beta = 0 if beta_met else 1
 
-    if (alpha_met and beta_met):
-        return 0
-    elif scaled:
-        val_a = abs(alpha_prime - alpha)
-        val_b = abs(beta_prime - beta)
+    loss_max_ess = (max_ess - min_sample_size) / ((n_analyses * max_sample_size) - min_sample_size)
 
-        val_a_scaled = val_a / max_alpha
-        val_b_scaled = val_b / max_beta
-
-        return scale_factor * (val_a_scaled + val_b_scaled)
-    else:
-        return mu * (abs(alpha_prime - alpha) + abs(beta_prime - beta))
+    return (alpha_factor * loss_alpha) + (beta_factor * loss_beta) + (max_ess_factor * loss_max_ess)
