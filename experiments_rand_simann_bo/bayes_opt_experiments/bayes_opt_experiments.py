@@ -145,7 +145,7 @@ def _(fn_min, fp, scaled_loss, sim, ss):
                 variance,
                 min_sample_size,
                 max_sample_size):
-    
+
             trial_sim = sim.group_sequential_designs(
                 n_analyses = n_analyses,
                 upper_bounds = upper_bounds,
@@ -155,10 +155,10 @@ def _(fn_min, fp, scaled_loss, sim, ss):
                 alt_hypothesis = alternative_hypothesis,
                 variance = variance
             )
-    
+
             alpha_prime = trial_sim[0]
             beta_prime = 1-trial_sim[1]
-    
+
             max_ess = ss.max_ess(
                 n_analyses = n_analyses,
                 upper_bounds = upper_bounds,
@@ -167,7 +167,7 @@ def _(fn_min, fp, scaled_loss, sim, ss):
                 null_hypothesis = null_hypothesis,
                 variance = variance
             )
-    
+
             penalty = fp.scaled_step(
                 mu = mu,
                 power = target_power,
@@ -182,7 +182,7 @@ def _(fn_min, fp, scaled_loss, sim, ss):
                 beta_factor=1,
                 max_ess_factor=1
             )
-    
+
             return (
                 alpha_prime,
                 1-beta_prime,
@@ -201,7 +201,7 @@ def _(fn_min, fp, scaled_loss, sim, ss):
                 null_hypothesis,
                 alternative_hypothesis,
                 variance):
-    
+
             trial_sim = sim.group_sequential_designs(
                 n_analyses = n_analyses,
                 upper_bounds = upper_bounds,
@@ -211,10 +211,10 @@ def _(fn_min, fp, scaled_loss, sim, ss):
                 alt_hypothesis = alternative_hypothesis,
                 variance = variance
             )
-    
+
             alpha_prime = trial_sim[0]
             beta_prime = 1-trial_sim[1]
-    
+
             max_ess = ss.max_ess(
                 n_analyses = n_analyses,
                 upper_bounds = upper_bounds,
@@ -223,7 +223,7 @@ def _(fn_min, fp, scaled_loss, sim, ss):
                 null_hypothesis = null_hypothesis,
                 variance = variance
             )
-    
+
             penalty = fp.smooth_penalty(
                 mu = mu,
                 power = target_power,
@@ -231,9 +231,9 @@ def _(fn_min, fp, scaled_loss, sim, ss):
                 alpha_prime = alpha_prime,
                 beta_prime = beta_prime
             )
-    
+
             f_val = fn_min.function_to_minimize(max_ess_val = max_ess/mu, penalty = penalty)
-    
+
             return (
                 alpha_prime,
                 1-beta_prime,
@@ -253,6 +253,7 @@ def _(
     np,
     num_analyses,
     obj_f,
+    scaled_loss,
     sigma2,
     ss,
     target_alpha,
@@ -274,21 +275,35 @@ def _(
         variance = sigma2
     )[0]
 
-    tri_alpha, tri_power, tri_max_ess, tri_obj = obj_f(
-        mu = mu,
-        upper_bounds = tri[0],
-        lower_bounds = tri[1],
-        n_analyses = num_analyses.value,
-        n_patients = tri_n_patients,
-        target_power = target_power,
-        target_alpha = target_alpha,
-        null_hypothesis = delta0,
-        alternative_hypothesis = delta1,
-        variance = sigma2,
-        min_sample_size=20,
-        max_sample_size=160
-    )
-
+    if scaled_loss.value:
+        tri_alpha, tri_power, tri_max_ess, tri_obj = obj_f(
+            mu = mu,
+            upper_bounds = tri[0],
+            lower_bounds = tri[1],
+            n_analyses = num_analyses.value,
+            n_patients = tri_n_patients,
+            target_power = target_power,
+            target_alpha = target_alpha,
+            null_hypothesis = delta0,
+            alternative_hypothesis = delta1,
+            variance = sigma2,
+            min_sample_size=20,
+            max_sample_size=160
+        )
+    else:
+        tri_alpha, tri_power, tri_max_ess, tri_obj = obj_f(
+            mu = mu,
+            upper_bounds = tri[0],
+            lower_bounds = tri[1],
+            n_analyses = num_analyses.value,
+            n_patients = tri_n_patients,
+            target_power = target_power,
+            target_alpha = target_alpha,
+            null_hypothesis = delta0,
+            alternative_hypothesis = delta1,
+            variance = sigma2
+        )
+    
     tri_params = fmt_bd.boundaries_to_reverse(
         upper_bounds = tri[0],
         lower_bounds = tri[1]
@@ -921,7 +936,7 @@ def _(
                     alternative_hypothesis = delta1,
                     variance = sigma2
                 )
-            
+        
             initial_y.append(initial_y_new)
 
         # turn y into [N,1] column vector
