@@ -1155,18 +1155,22 @@ def _(
     do_not_train_error,
     n_experiments,
     n_loops,
+    num_analyses,
     num_haltons,
     radio,
     scale_input,
     scale_output,
     scaled_loss,
 ):
-    file_name = "bo_smooth"
-
-    file_name += "_" + str(n_experiments) + "x" + str(n_loops)
+    file_name = str(num_analyses.value) + "-stage"
 
     if scaled_loss.value:
         file_name += "_scaled_loss"
+    else:
+        file_name += "_smooth_loss"
+
+    file_name += "_" + str(n_experiments) + "x" + str(n_loops + num_haltons.value)
+
     if scale_input.value:
         file_name += "_x_min_max"
     if scale_output.value:
