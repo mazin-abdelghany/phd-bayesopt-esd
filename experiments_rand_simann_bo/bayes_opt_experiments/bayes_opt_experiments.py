@@ -303,7 +303,7 @@ def _(
             alternative_hypothesis = delta1,
             variance = sigma2
         )
-    
+
     tri_params = fmt_bd.boundaries_to_reverse(
         upper_bounds = tri[0],
         lower_bounds = tri[1]
@@ -936,7 +936,7 @@ def _(
                     alternative_hypothesis = delta1,
                     variance = sigma2
                 )
-        
+    
             initial_y.append(initial_y_new)
 
         # turn y into [N,1] column vector
@@ -1075,8 +1075,8 @@ def _(
                     null_hypothesis = delta0,
                     alternative_hypothesis = delta1,
                     variance = sigma2,
-                    min_sample_size=search_space.lower[(2 * num_analyses.value) - 1],
-                    max_sample_size=search_space.upper[(2 * num_analyses.value) - 1]
+                    min_sample_size=search_space.lower[(2 * num_analyses.value) - 1].numpy(),
+                    max_sample_size=search_space.upper[(2 * num_analyses.value) - 1].numpy()
                 )
             else:
                 alpha, power, max_ess, y_new = obj_f(
