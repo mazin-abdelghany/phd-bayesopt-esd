@@ -169,18 +169,16 @@ def _(fn_min, fp, scaled_loss, sim, ss):
             )
 
             penalty = fp.scaled_step(
-                mu = mu,
                 power = target_power,
                 alpha = target_alpha,
                 alpha_prime = alpha_prime,
                 beta_prime = beta_prime,
-                n_analyses=n_analyses,
                 min_sample_size=min_sample_size,
                 max_sample_size=max_sample_size,
                 max_ess=max_ess,
                 alpha_factor=1,
                 beta_factor=1,
-                max_ess_factor=1
+                max_ess_factor=5
             )
 
             return (
@@ -920,8 +918,8 @@ def _(
                     null_hypothesis = delta0,
                     alternative_hypothesis = delta1,
                     variance = sigma2,
-                    min_sample_size=search_space.lower[(2 * num_analyses.value) - 1],
-                    max_sample_size=search_space.upper[(2 * num_analyses.value) - 1]
+                    min_sample_size=20,#search_space.lower[(2 * num_analyses.value) - 1],
+                    max_sample_size=160#search_space.upper[(2 * num_analyses.value) - 1]
                 )
             else:
                 _, _, _, initial_y_new = obj_f(
@@ -936,7 +934,7 @@ def _(
                     alternative_hypothesis = delta1,
                     variance = sigma2
                 )
-    
+
             initial_y.append(initial_y_new)
 
         # turn y into [N,1] column vector
@@ -1075,8 +1073,8 @@ def _(
                     null_hypothesis = delta0,
                     alternative_hypothesis = delta1,
                     variance = sigma2,
-                    min_sample_size=search_space.lower[(2 * num_analyses.value) - 1].numpy(),
-                    max_sample_size=search_space.upper[(2 * num_analyses.value) - 1].numpy()
+                    min_sample_size=20,#search_space.lower[(2 * num_analyses.value) - 1].numpy(),
+                    max_sample_size=160#search_space.upper[(2 * num_analyses.value) - 1].numpy()
                 )
             else:
                 alpha, power, max_ess, y_new = obj_f(
