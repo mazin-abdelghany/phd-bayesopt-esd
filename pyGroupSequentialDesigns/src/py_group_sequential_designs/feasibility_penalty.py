@@ -1,3 +1,6 @@
+import sys
+eps = sys.float_info.epsilon
+
 # generate the penalty term
 def feasibility_penalty(
         mu,
@@ -112,30 +115,28 @@ def low_repulsion(
 
 # step function penalty for alpha and beta and scaled loss for all components
 def scaled_step(
-        mu,
         power,
         alpha,
         alpha_prime,
         beta_prime,
-        n_analyses,
         min_sample_size,
         max_sample_size,
         max_ess,
         alpha_epsilon = 0.005,
         beta_epsilon = 0.01,
-        alpha_factor = 10,
-        beta_factor = 10,
-        max_ess_factor = 10):
+        alpha_factor = 1,
+        beta_factor = 1,
+        max_ess_factor = 1):
     
     # calculate beta from power
     beta = 1-power
 
-    alpha_met = (alpha_prime <= alpha) & ( (alpha - alpha_epsilon) <= alpha_prime )
-    beta_met = (beta_prime <= beta) & ( (beta - beta_epsilon) <= beta_prime )
+    alpha_met = (alpha_prime <= (alpha + eps)) & ((alpha - alpha_epsilon - eps) <= alpha_prime )
+    beta_met = (beta_prime <= (beta + eps)) & ((beta - beta_epsilon - eps) <= beta_prime )
 
     loss_alpha = 0 if alpha_met else 1
     loss_beta = 0 if beta_met else 1
 
-    loss_max_ess = (max_ess - min_sample_size) / ((n_analyses * max_sample_size) - min_sample_size)
+    loss_max_ess = max_ess / (max_sample_size - min_sample_size)
 
     return (alpha_factor * loss_alpha) + (beta_factor * loss_beta) + (max_ess_factor * loss_max_ess)
