@@ -156,9 +156,6 @@ def _(fn_min, fp, scaled_loss, sim, ss):
                 variance = variance
             )
 
-            alpha_prime = trial_sim[0]
-            beta_prime = 1-trial_sim[1]
-
             max_ess = ss.max_ess(
                 n_analyses = n_analyses,
                 upper_bounds = upper_bounds,
@@ -167,6 +164,9 @@ def _(fn_min, fp, scaled_loss, sim, ss):
                 null_hypothesis = null_hypothesis,
                 variance = variance
             )
+
+            alpha_prime = trial_sim[0]
+            beta_prime = 1-trial_sim[1]
 
             penalty = fp.scaled_step(
                 power = target_power,
