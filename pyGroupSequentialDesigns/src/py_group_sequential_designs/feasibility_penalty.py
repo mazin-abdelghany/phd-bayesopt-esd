@@ -143,10 +143,10 @@ def scaled_step(
 
 # tub function
 def tub(
-        alpha, 
         power,
-        target_alpha,
-        target_beta,
+        alpha,
+        alpha_prime,
+        beta_prime,
         min_sample_size,
         max_sample_size,
         max_ess,
@@ -160,12 +160,12 @@ def tub(
     beta = 1-power
 
     # eps ensures that machine precision does not alter inequality meaning
-    alpha_met = (-alpha_epsilon - eps <= alpha - target_alpha) & (alpha - target_alpha <= eps)
-    beta_met = (-beta_epsilon - eps <= beta - target_beta) & (beta - target_beta <= eps)
+    alpha_met = (-alpha_epsilon - eps <= alpha_prime - alpha) & (alpha_prime - alpha <= eps)
+    beta_met = (-beta_epsilon - eps <= beta_prime - beta) & (beta_prime - beta <= eps)
 
     # calculate the loss values
-    loss_alpha = abs(alpha-target_alpha)
-    loss_beta = abs(beta-target_beta) 
+    loss_alpha = abs(alpha_prime - alpha)
+    loss_beta = abs(beta_prime - beta) 
     loss_max_ess = max_ess / (max_sample_size - min_sample_size)
 
     if (alpha_met and beta_met):
