@@ -172,3 +172,43 @@ def tub(
         return max_ess_factor * loss_max_ess
     else:
         return (alpha_factor * loss_alpha) + (beta_factor * loss_beta) + (max_ess_factor * loss_max_ess)
+
+def tub_w_max_ss(
+        power,
+        alpha,
+        alpha_prime,
+        beta_prime,
+        min_sample_size,
+        max_sample_size,
+        max_ess,
+        n_analyses,
+        sample_size,
+        alpha_epsilon = 0.005,
+        beta_epsilon = 0.01,
+        alpha_factor = 1,
+        beta_factor = 1,
+        max_ess_factor = 1,
+        max_ss_factor = 1):
+
+    # calculate beta from power
+    beta = 1-power
+
+    # eps ensures that machine precision does not alter inequality meaning
+    alpha_met = (-alpha_epsilon - eps <= alpha_prime - alpha) & (alpha_prime - alpha <= eps)
+    beta_met = (-beta_epsilon - eps <= beta_prime - beta) & (beta_prime - beta <= eps)
+
+    # calculate the loss values
+    loss_alpha = abs(alpha_prime - alpha)
+    loss_beta = abs(beta_prime - beta) 
+    loss_max_ess = max_ess / (max_sample_size - min_sample_size)
+    loss_max_ss = (n_analyses * sample_size) / (max_sample_size - min_sample_size)
+    
+    if (alpha_met and beta_met):
+        return (max_ess_factor * loss_max_ess) + (max_ss_factor * loss_max_ss)
+    else:
+        return (
+            (alpha_factor * loss_alpha) +
+            (beta_factor * loss_beta) +
+            (max_ess_factor * loss_max_ess) +
+            (max_ss_factor * loss_max_ss)
+        )
