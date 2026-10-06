@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.16"
+__generated_with = "0.24.0"
 app = marimo.App(width="medium")
 
 
@@ -203,7 +203,7 @@ def _(mo, num_methods):
     ])
 
     file_browser = mo.ui.file_browser(
-        initial_path = "/tf/experiments_rand_simann_bo/",
+        initial_path = "/workspace/experiments_rand_simann_bo/",
         label = "Select files in the order of the methods."
     )
 
@@ -701,6 +701,7 @@ def _(datasets, labels):
     # empty dictionaries to fill with sorted constrained data
     _constrained_data = dict()
     sorted_constrained_data = dict()
+    idx = dict()
 
     for _i, _label_ui in enumerate(labels.elements):
         # get the labels for the sorted constrained data dictionary
@@ -712,7 +713,7 @@ def _(datasets, labels):
         # group by the run, get the index of the minimum value for the objective function, then sort
         # reset the index, so indexing can start from 0
         # save this in the dictionary position for the corresponding label
-        idx = (
+        idx[_label_value] = (
             _constrained_data[_label_value]
             .groupby("runs")["obj_func"]
             .idxmin()
@@ -720,21 +721,21 @@ def _(datasets, labels):
 
         sorted_constrained_data[_label_value] = (
             _constrained_data[_label_value]
-            .loc[idx]
+            .loc[idx[_label_value]]
             .sort_values("obj_func")
             .reset_index(drop=True)
         )
-    return (sorted_constrained_data,)
+    return idx, sorted_constrained_data
 
 
 @app.cell
 def _(
     column_runs_compare,
     datasets,
+    idx,
     lower_boundary_value_labels,
     mlines,
     mo,
-    n_experiments_dict,
     plt,
     sorted_constrained_data,
     stages,
@@ -749,11 +750,11 @@ def _(
     _ax = _ax.flatten()
 
     for _idx, (_label, _data) in enumerate(datasets.items()):
-        for _run_idx in range(n_experiments_dict[_label]):
+        for _run_idx in range(len(idx[_label])):
 
             _b = _ax[_idx]
 
-            _b.set_title(_label + f", top {n_experiments_dict[_label]} bounds")
+            _b.set_title(_label + f", top {len(idx[_label])} bounds")
             _b.set(xlabel="Trial stages", xticks=stages)
 
             _b.plot(stages, 
@@ -922,6 +923,7 @@ def _(
 
             _constrained_data = _run_data[_run_data["alpha"] <= 0.05]
 
+            if _constrained_data.empty: continue
             _min_idx = _constrained_data["obj_func"].idxmin()
 
             # get the upper bound values
