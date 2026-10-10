@@ -95,13 +95,19 @@ def _probability_calculator(
 
         # trapezoidal integration rule -- summing all arguments and then 
         # subtracting the extra 0.5 of first and last argument
-        fut_probs[k] = (np.sum(fut_arg) - 0.5 * (fut_arg[0] + fut_arg[-1])) * dz_prev
-        eff_probs[k] = (np.sum(eff_arg) - 0.5 * (eff_arg[0] + eff_arg[-1])) * dz_prev
-        
+        fut_prob = fut_arg[0] + fut_arg[-1]
+        eff_prob = eff_arg[0] + eff_arg[-1]
+        for i in range(1, grid_points-1):
+            weight = 4 if i % 2 == 1 else 2
+            fut_prob += weight * fut_arg[i]
+            eff_prob += weight * eff_arg[i]
+
+        fut_probs[k] = fut_prob * dz_prev / 3
+        eff_probs[k] = eff_prob * dz_prev / 3
+
         # Transition probability subdensity matrix for stages 3+ as the 
         # Stage 2 subdensity was calculated above (f_1(z_1))
         if k < n_analyses - 1:
-            next_lower, next_upper = lower_bounds[k], upper_bounds[k]
             
             if lower_bounds[k] > upper_bounds[k]:
                 raise Exception("Error: Upper bounds are lower than lower bounds.")
@@ -113,21 +119,34 @@ def _probability_calculator(
             # calculate the transition matrix that discretizes Eq. 19; this is
             # g_k from equation 19, the conditional probability density of 
             # moving from stage k-1 to k for a certain z_k
-            transition_pdf = np.zeros((grid_points, grid_points))
-            for r in range(grid_points):
-                for c in range(grid_points):
-                    # calculate the conditional z_k for the argument to phi()
-                    phi_arg = (current_loop_z_grid[r] - cond_means[c]) / cond_scale
-                    # finish the g_k calculation (Eq. 23)
-                    transition_pdf[r, c] = std_norm_pdf(phi_arg) / cond_scale
-            
-            # this is f_k-1 times g_k from Eq. 19
-            joint_probability_matrix = transition_pdf * density
+            next_density = np.zeros(grid_points)
+            for row in range(grid_points):
+                sum = 0
+                for col in range(grid_points):
+                    # calculate the conditional z_k for the argument of the pdf function
+                    pdf_arg = (current_loop_z_grid[row] - cond_means[col]) / cond_scale
 
-            # integrating over the rows of the joint matrix integrates out the
-            # z_k-1 component
-            density = (np.sum(joint_probability_matrix, axis=1) - 0.5 * (joint_probability_matrix[:, 0] + joint_probability_matrix[:, -1])) * dz_prev
-            
+                    # calculate f_{k-1} * g_k from equation 19
+                    joint_prob = (std_norm_pdf(pdf_arg) / cond_scale) * density[col]
+
+                    # integrate over the rows of the joint matrix to integrate out
+                    # the z_{k-1}, with value saved in sum and Simpson's rule
+                    # implemented after inner for loop
+                    #
+                    # first and last weights 1, even weights 4, odd weights 2
+                    weight = (
+                        1 if ((col == 0) or (col == grid_points - 1)) 
+                        else 4 if col % 2 == 1 
+                        else 2
+                    )
+
+                    sum += weight * joint_prob
+
+                # integrating over the rows of the joint matrix integrates out the
+                # z_k-1 component
+                next_density[row] = sum * dz_prev / 3
+
+            density = next_density
             z_grid = current_loop_z_grid
             
     return fut_probs, eff_probs
@@ -143,7 +162,7 @@ def group_sequential_designs(
     alt_hypothesis=0.5,
     variance=1,
     return_table=False,
-    grid_points=100
+    grid_points=1001
 ):
 
     upper_bounds = np.asarray(upper_bounds, dtype=float)
