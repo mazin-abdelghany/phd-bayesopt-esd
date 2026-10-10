@@ -8,30 +8,6 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
 
-    return (mo,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    need to install mpmath
-    uv pip install mpmath
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    testing the bounds
-        const bounds = Bounds(3) {
-            .upper = .{3, 2, 1},
-            .lower = .{-2, -1, 1},
-        };
-
-
-    the below calculation is for futility under the null at the last stage.
-    """)
     return
 
 
@@ -39,77 +15,162 @@ def _(mo):
 def _():
     import mpmath as mp
 
-    def reference_probability(dps=40):
-        with mp.workdps(dps):
-            sqrt2 = mp.sqrt(2)
-            rho12 = mp.sqrt(mp.mpf(1) / 2)
-            rho23 = mp.sqrt(mp.mpf(2) / 3)
-
-            def Phi(x):
-                return mp.erfc(-x / sqrt2) / 2
-
-            def conditional_z3_cdf(z2):
-                return Phi((1 - rho23 * z2) / mp.sqrt(1 - rho23**2))
-
-            def integrand_z2(z2):
-                # P(Z3 <= 1 | Z2=z2) * f(Z2 | Z1=z1)
-                # The integration over Z1 is performed outside.
-                return conditional_z3_cdf(z2)
-
-            def inner(z1):
-                mean2 = rho12 * z1
-                sd2 = mp.sqrt(1 - rho12**2)
-
-                def f_z2(z2):
-                    density = mp.exp(
-                        -((z2 - mean2) / sd2)**2 / 2
-                    ) / (sd2 * mp.sqrt(2 * mp.pi))
-
-                    return density * integrand_z2(z2)
-
-                return mp.quad(f_z2, [-1, 2])
-
-            def outer(z1):
-                density1 = mp.exp(-z1**2 / 2) / mp.sqrt(2 * mp.pi)
-                return density1 * inner(z1)
-
-            result = mp.quad(outer, [-2, 3])
-            return +result
-
-
-    for digits in (25, 40):
-        p = reference_probability(digits)
-        print(f"dps={digits}: {mp.nstr(p, 30)}")
-    return
-
-
-app._unparsable_cell(
-    r"""
-    501: 0.67694139 49931851
-    1001: 0.67694139500 58686
-    10_001: 0.67694139500671 78
-    20_001: 0.67694139500671 29
-    """,
-    name="_"
-)
-
-
-app._unparsable_cell(
-    r"""
-    500: 0.67694 01241014688
-    1000: 0.676941 0779156123
-    10_000: 0.67694139 18415071
-    100_000: 0.6769413949 750639
-    """,
-    name="_"
-)
+    return (mp,)
 
 
 @app.cell
-def _():
-    import marimo as mo
+def _(mp):
+    def reference_gsd_probability(
+        n_analyses,
+        upper_bounds,
+        lower_bounds,
+        n_patients_analysis,
+        means,
+        stage,
+        event="futility",
+        dps=40,
+    ):
+        """
+        Calculate the unconditional probability of futility or efficacy
+        at one specified analysis, conditional on continuation through
+        all previous analyses.
 
-    return (mo,)
+        Parameters
+        ----------
+        n_analyses : int
+            Number of analyses.
+        upper_bounds, lower_bounds : sequence
+            Efficacy and futility boundaries at each analysis.
+            Bounds may include -mp.inf and mp.inf.
+        n_patients_analysis : sequence
+            Cumulative information/patient counts at each analysis.
+        means : sequence
+            Mean of the standardized statistic at each analysis.
+        stage : int
+            Analysis number, using 1-based indexing.
+        event : str
+            "futility" or "efficacy".
+        dps : int
+            Decimal precision.
+
+        Returns
+        -------
+        mp.mpf
+            Unconditional probability of the specified event
+            occurring at the specified stage.
+        """
+
+        if not 1 <= stage <= n_analyses:
+            raise ValueError("stage must be between 1 and n_analyses")
+
+        if event not in ("futility", "efficacy"):
+            raise ValueError("event must be 'futility' or 'efficacy'")
+
+        if len(upper_bounds) != n_analyses:
+            raise ValueError("upper_bounds length must equal n_analyses")
+        if len(lower_bounds) != n_analyses:
+            raise ValueError("lower_bounds length must equal n_analyses")
+        if len(n_patients_analysis) != n_analyses:
+            raise ValueError("n_patients_analysis length must equal n_analyses")
+        if len(means) != n_analyses:
+            raise ValueError("means length must equal n_analyses")
+
+        with mp.workdps(dps):
+            upper = [mp.mpf(x) for x in upper_bounds]
+            lower = [mp.mpf(x) for x in lower_bounds]
+            info = [mp.mpf(x) for x in n_patients_analysis]
+            mu = [mp.mpf(x) for x in means]
+
+            sqrt2 = mp.sqrt(2)
+            sqrt2pi = mp.sqrt(2 * mp.pi)
+
+            def pdf(x):
+                return mp.exp(-x**2 / 2) / sqrt2pi
+
+            def cdf(x):
+                return mp.erfc(-x / sqrt2) / 2
+
+            def sf(x):
+                return mp.erfc(x / sqrt2) / 2
+
+            # Probability at stage 1 requires no integration.
+            if stage == 1:
+                if event == "futility":
+                    return +cdf(lower[0] - mu[0])
+                return +sf(upper[0] - mu[0])
+
+            # Conditional distribution of Z_k given Z_(k-1).
+            def conditional_params(k, z_prev):
+                rho = mp.sqrt(info[k - 1] / info[k])
+                cond_mean = mu[k] + rho * (z_prev - mu[k - 1])
+                cond_sd = mp.sqrt(1 - rho**2)
+                return cond_mean, cond_sd
+
+            # Integrate over Z_1,...,Z_(stage-1), then evaluate
+            # the final conditional event probability.
+            def joint_integral(level, previous_z):
+                if level == stage - 1:
+                    z_prev = previous_z[-1]
+                    cond_mean, cond_sd = conditional_params(
+                        stage - 1, z_prev
+                    )
+
+                    if event == "futility":
+                        return cdf((lower[stage - 1] - cond_mean) / cond_sd)
+                    return sf((upper[stage - 1] - cond_mean) / cond_sd)
+
+                def integrand(z):
+                    if level == 0:
+                        density = pdf(z - mu[0])
+                    else:
+                        cond_mean, cond_sd = conditional_params(
+                            level, previous_z[-1]
+                        )
+                        density = (
+                            pdf((z - cond_mean) / cond_sd) / cond_sd
+                        )
+
+                    return density * joint_integral(
+                        level + 1, previous_z + [z]
+                    )
+
+                return mp.quad(
+                    integrand,
+                    [lower[level], upper[level]],
+                )
+
+            return +joint_integral(0, [])
+
+    return (reference_gsd_probability,)
+
+
+@app.cell
+def _(mp, reference_gsd_probability):
+    mp.mp.dps = 50
+
+    upper = [3, 2, 1]
+    lower = [-2, -1, 1]
+
+    info = [20, 40, 60]
+    means = [0, 0, 0]
+
+    stage = 3
+
+    # Probability of futility at stage 2
+    p_fut_2 = reference_gsd_probability(
+        3, upper, lower, info, means,
+        stage=stage, event="futility"
+    )
+
+    # Probability of efficacy at stage 2
+    p_eff_2 = reference_gsd_probability(
+        3, upper, lower, info, means,
+        stage=stage, event="efficacy"
+    )
+
+    print(f"Stage {stage} futility:", mp.nstr(p_fut_2, 30))
+    print(f"Stage {stage} efficacy:", mp.nstr(p_eff_2, 30))
+    return
 
 
 if __name__ == "__main__":
