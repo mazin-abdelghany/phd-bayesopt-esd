@@ -162,7 +162,7 @@ def group_sequential_designs(
     alt_hypothesis=0.5,
     variance=1,
     return_table=False,
-    grid_points=501
+    grid_points=301
 ):
 
     upper_bounds = np.asarray(upper_bounds, dtype=float)
