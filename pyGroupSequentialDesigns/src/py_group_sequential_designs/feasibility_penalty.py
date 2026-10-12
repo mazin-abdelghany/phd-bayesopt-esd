@@ -77,6 +77,14 @@ def smooth_penalty(
     else:
         return mu * ((alpha_prime - alpha)**2 + (beta_prime - beta)**2)
 
+# smooth penalty no beta no scaling
+def smooth_pen_no_beta(
+        mu,
+        alpha,
+        alpha_prime):
+
+    return mu * (alpha_prime - alpha)**2
+
 # penalty with lower repulsion
 def low_repulsion(
         mu,
