@@ -130,7 +130,19 @@ def _(mo, scaled_loss):
 
 
 @app.cell
-def _(fn_min, fp, scaled_loss, sim, ss):
+def _(mo):
+    remove_n_beta = mo.ui.switch(label="Remove n")
+    return (remove_n_beta,)
+
+
+@app.cell
+def _(mo, remove_n_beta):
+    mo.vstack([remove_n_beta, mo.md(f"Has value: {remove_n_beta.value}")])
+    return
+
+
+@app.cell
+def _(fn_min, fp, remove_n_beta, scaled_loss, sim, ss):
     if scaled_loss.value:
         def obj_f(
                 mu,
@@ -168,7 +180,7 @@ def _(fn_min, fp, scaled_loss, sim, ss):
             alpha_prime = trial_sim[0]
             beta_prime = 1-trial_sim[1]
 
-            penalty = fp.scaled_step(
+            penalty = fp.tub(
                 power = target_power,
                 alpha = target_alpha,
                 alpha_prime = alpha_prime,
@@ -176,9 +188,9 @@ def _(fn_min, fp, scaled_loss, sim, ss):
                 min_sample_size=min_sample_size,
                 max_sample_size=max_sample_size,
                 max_ess=max_ess,
-                alpha_factor=1,
-                beta_factor=1,
-                max_ess_factor=5
+                alpha_factor=100,
+                beta_factor=100,
+                max_ess_factor=8
             )
 
             return (
@@ -222,13 +234,20 @@ def _(fn_min, fp, scaled_loss, sim, ss):
                 variance = variance
             )
 
-            penalty = fp.smooth_penalty(
-                mu = mu,
-                power = target_power,
-                alpha = target_alpha,
-                alpha_prime = alpha_prime,
-                beta_prime = beta_prime
-            )
+            if remove_n_beta.value:
+                penalty = fp.smooth_pen_no_beta(
+                    mu = mu,
+                    alpha = target_alpha,
+                    alpha_prime = alpha_prime
+                )
+            else:
+                penalty = fp.smooth_penalty(
+                    mu = mu,
+                    power = target_power,
+                    alpha = target_alpha,
+                    alpha_prime = alpha_prime,
+                    beta_prime = beta_prime
+                )
 
             f_val = fn_min.function_to_minimize(max_ess_val = max_ess/mu, penalty = penalty)
 
@@ -422,7 +441,7 @@ def _(mo):
 
 
 @app.cell
-def _(c0, mo, np, num_analyses, tri_params):
+def _(c0, mo, np, num_analyses, remove_n_beta, tri_params):
     search_space_boxes = ['large_box', 'large_box_5_stages', 'small_box', 'triang_box']
 
     # create a single dropdown
@@ -469,9 +488,13 @@ def _(c0, mo, np, num_analyses, tri_params):
             lower[-1] = 20
             upper[-1] = 60
 
-
-        lower_spaces[key] = lower
-        upper_spaces[key] = upper
+        if remove_n_beta.value:
+            #lower[1:n-1] = lower[1:n-1] + 1e-3
+            lower_spaces[key] = lower[0:n-1]
+            upper_spaces[key] = upper[0:n-1]
+        else:
+            lower_spaces[key] = lower
+            upper_spaces[key] = upper
     return lower_spaces, space_dropdown, upper_spaces
 
 
@@ -860,12 +883,14 @@ def _(
     num_haltons,
     obj_f,
     radio,
+    remove_n_beta,
     scale_input,
     scale_output,
     scaled_loss,
     search_space,
     short_seed_list,
     sigma2,
+    ss,
     target_alpha,
     target_power,
     tf,
@@ -901,10 +926,25 @@ def _(
         # for each point
         for point in initial_points:
 
-            sample_size = point[(num_analyses.value*2)-1]
-            bounds = point[:-1]
+            if remove_n_beta.value:
+                bounds = point
+            else:
+                bounds = point[:-1]
 
             bounds = fmt_bd.reverse_to_boundaries(params = bounds, K = num_analyses.value)
+
+            if remove_n_beta.value:
+                sample_size = ss.find_sample_size(
+                    power_target = target_power,
+                    n_analyses = num_analyses.value,
+                    upper_bounds = bounds[0],
+                    lower_bounds = bounds[1],
+                    null_hypothesis = delta0,
+                    alt_hypothesis = delta1,
+                    variance = sigma2
+                )[0]
+            else:
+                sample_size = point[(num_analyses.value*2)-1]
 
             if scaled_loss.value:
                 _, _, _, initial_y_new = obj_f(
@@ -1021,11 +1061,11 @@ def _(
             datasets         = initial_data,
             models           = bayes_opt_model,
             acquisition_rule = trieste.acquisition.rule.EfficientGlobalOptimization(
-                #optimizer = trieste.acquisition.optimizer.generate_continuous_optimizer(
+                optimizer = trieste.acquisition.optimizer.generate_continuous_optimizer(
                 #    num_initial_samples=10000,  # see above for reason
-                #    num_optimization_runs=100,  # see above for reason
-                #    num_recovery_runs=10        # left at default
-                #)
+                #    num_optimization_runs=500,  # see above for reason
+                    num_recovery_runs=500        # left at default
+                )
             )
         )
 
@@ -1046,7 +1086,41 @@ def _(
             # d = np.linalg.norm(X - x_new.numpy(), axis=1)
             # print("dist:", d.min())
 
-            if scale_input.value:
+            if remove_n_beta.value and not scale_input.value:
+                x_new_bounds = x_new_np
+
+                bounds = fmt_bd.reverse_to_boundaries(params = x_new_bounds, K = num_analyses.value)
+                bounds_list = np.concatenate( (bounds[0], bounds[1][0:num_analyses.value-1]) )
+    
+                x_new_sample_size = ss.find_sample_size(
+                    power_target = target_power,
+                    n_analyses = num_analyses.value,
+                    upper_bounds = bounds[0],
+                    lower_bounds = bounds[1],
+                    null_hypothesis = delta0,
+                    alt_hypothesis = delta1,
+                    variance = sigma2
+                )[0]
+            elif remove_n_beta.value and scale_input.value:
+                x_new_bounds = min_max_unscale(
+                    x_scaled = x_new_np, 
+                    min = current_lower,
+                    max = current_upper
+                )
+
+                bounds = fmt_bd.reverse_to_boundaries(params = x_new_bounds, K = num_analyses.value)
+                bounds_list = np.concatenate( (bounds[0], bounds[1][0:num_analyses.value-1]) )
+
+                x_new_sample_size = ss.find_sample_size(
+                    power_target = target_power,
+                    n_analyses = num_analyses.value,
+                    upper_bounds = bounds[0],
+                    lower_bounds = bounds[1],
+                    null_hypothesis = delta0,
+                    alt_hypothesis = delta1,
+                    variance = sigma2
+                )[0]
+            elif scale_input.value and not remove_n_beta.value:
                 x_new_unscaled = min_max_unscale(
                     x_scaled = x_new_np, 
                     min = current_lower,
@@ -1054,12 +1128,15 @@ def _(
                 )
                 x_new_sample_size = x_new_unscaled[0][(num_analyses.value*2)-1]
                 x_new_bounds = x_new_unscaled[0][:-1]
-            else:
+    
+                bounds = fmt_bd.reverse_to_boundaries(params = x_new_bounds, K = num_analyses.value)
+                bounds_list = np.concatenate( (bounds[0], bounds[1][0:num_analyses.value-1]) )
+            else:          
                 x_new_sample_size = x_new_np[0][(num_analyses.value*2)-1]
                 x_new_bounds = x_new_np[0][:-1]
 
-            bounds = fmt_bd.reverse_to_boundaries(params = x_new_bounds, K = num_analyses.value)
-            bounds_list = np.concatenate( (bounds[0], bounds[1][0:num_analyses.value-1]) )
+                bounds = fmt_bd.reverse_to_boundaries(params = x_new_bounds, K = num_analyses.value)
+                bounds_list = np.concatenate( (bounds[0], bounds[1][0:num_analyses.value-1]) )
 
             if scaled_loss.value:
                 alpha, power, max_ess, y_new = obj_f(
@@ -1171,6 +1248,7 @@ def _(
     num_analyses,
     num_haltons,
     radio,
+    remove_n_beta,
     scale_input,
     scale_output,
     scaled_loss,
@@ -1182,6 +1260,9 @@ def _(
     else:
         file_name += "_smooth_loss"
 
+    if remove_n_beta.value:
+        file_name += "_no_n"
+
     file_name += "_" + str(n_experiments) + "x" + str(n_loops + num_haltons.value)
 
     if scale_input.value:
@@ -1192,6 +1273,8 @@ def _(
         file_name += "_" + str(radio.value)
 
     file_name += "_" + str(num_haltons.value) + "haltons"
+
+    file_name += "_high_prec"
 
     file_name += ".csv"
     return (file_name,)
