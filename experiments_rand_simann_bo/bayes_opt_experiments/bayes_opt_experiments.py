@@ -180,18 +180,29 @@ def _(fn_min, fp, remove_n_beta, scaled_loss, sim, ss):
             alpha_prime = trial_sim[0]
             beta_prime = 1-trial_sim[1]
 
-            penalty = fp.tub(
-                power = target_power,
-                alpha = target_alpha,
-                alpha_prime = alpha_prime,
-                beta_prime = beta_prime,
-                min_sample_size=min_sample_size,
-                max_sample_size=max_sample_size,
-                max_ess=max_ess,
-                alpha_factor=100,
-                beta_factor=100,
-                max_ess_factor=8
-            )
+            if remove_n_beta.value:
+                penalty = fp.tub_no_beta(
+                    alpha = target_alpha,
+                    alpha_prime = alpha_prime,
+                    min_sample_size=min_sample_size,
+                    max_sample_size=max_sample_size,
+                    max_ess=max_ess,
+                    alpha_factor=100,
+                    max_ess_factor=8
+                )
+            else:
+                penalty = fp.tub(
+                    power = target_power,
+                    alpha = target_alpha,
+                    alpha_prime = alpha_prime,
+                    beta_prime = beta_prime,
+                    min_sample_size=min_sample_size,
+                    max_sample_size=max_sample_size,
+                    max_ess=max_ess,
+                    alpha_factor=100,
+                    beta_factor=100,
+                    max_ess_factor=8
+                )
 
             return (
                 alpha_prime,
@@ -1091,7 +1102,7 @@ def _(
 
                 bounds = fmt_bd.reverse_to_boundaries(params = x_new_bounds, K = num_analyses.value)
                 bounds_list = np.concatenate( (bounds[0], bounds[1][0:num_analyses.value-1]) )
-    
+
                 x_new_sample_size = ss.find_sample_size(
                     power_target = target_power,
                     n_analyses = num_analyses.value,
@@ -1128,7 +1139,7 @@ def _(
                 )
                 x_new_sample_size = x_new_unscaled[0][(num_analyses.value*2)-1]
                 x_new_bounds = x_new_unscaled[0][:-1]
-    
+
                 bounds = fmt_bd.reverse_to_boundaries(params = x_new_bounds, K = num_analyses.value)
                 bounds_list = np.concatenate( (bounds[0], bounds[1][0:num_analyses.value-1]) )
             else:          
