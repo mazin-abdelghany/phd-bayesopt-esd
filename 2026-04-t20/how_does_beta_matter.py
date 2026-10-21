@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.21.1"
+__generated_with = "0.24.0"
 app = marimo.App(width="medium")
 
 
@@ -22,8 +22,9 @@ def _():
 @app.cell
 def _():
     from py_group_sequential_designs import simulate as sim
+    from py_group_sequential_designs import sample_size as ss
 
-    return (sim,)
+    return sim, ss
 
 
 @app.cell(hide_code=True)
@@ -35,14 +36,25 @@ def _(mo):
 
 
 @app.cell
+def _(mo):
+    num_analyses = mo.ui.number(start=1, stop=20, label="Number of analyses")
+    return (num_analyses,)
+
+
+@app.cell
+def _(num_analyses):
+    num_analyses
+    return
+
+
+@app.cell
 def _():
-    num_analyses = 3
     target_alpha = 0.05
     target_power = 0.9
     delta0 = 0
     delta1 = 1.0
-    sigma2 = 3.0
-    return delta0, delta1, num_analyses, sigma2
+    sigma2 = 9.0
+    return delta0, delta1, sigma2
 
 
 @app.cell(hide_code=True)
@@ -55,52 +67,84 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    upper_bound1 = mo.ui.slider(start=0, stop=3, step=0.001, 
-                                label="Upper bound 1", orientation="horizontal",
-                                show_value=True)
-    upper_bound1
-    return (upper_bound1,)
+    slider_or_value = mo.ui.switch(label="Slider or value")
+    return (slider_or_value,)
+
+
+@app.cell
+def _(slider_or_value):
+    if slider_or_value.value:
+        label = "slider"
+    else:
+        label = "value"
+    return (label,)
+
+
+@app.cell
+def _(label, mo, slider_or_value):
+    mo.vstack([slider_or_value, mo.md(f"Has value: {label}")])
+    return
+
+
+@app.cell
+def _(mo, num_analyses, slider_or_value):
+    upper = []
+    if slider_or_value.value:
+        for i in range(num_analyses.value):
+            upper.append(
+                mo.ui.slider(
+                    start=-10, stop=10, step=0.001,
+                    label=f"Upper bound {i+1}",
+                    orientation="horizontal",
+                    show_value=True
+                )
+            )
+    else:
+        for i in range(num_analyses.value):
+            upper.append(
+                mo.ui.number(start=-10, stop=10, label="Number of analyses")
+            )
+    return (upper,)
+
+
+@app.cell
+def _(mo, num_analyses, slider_or_value):
+    lower = []
+    if slider_or_value.value:
+        for j in range(num_analyses.value-1):
+            lower.append(
+                mo.ui.slider(
+                    start=-10, stop=10, step=0.001,
+                    label=f"Lower bound {j+1}",
+                    orientation="horizontal",
+                    show_value=True
+                )
+            )
+    else:
+        for j in range(num_analyses.value-1):
+            lower.append(
+                mo.ui.number(start=-10, stop=10, label="Number of analyses")
+            )
+    return (lower,)
+
+
+@app.cell
+def _(mo, upper):
+    upper_array = mo.ui.array(upper)
+    upper_array
+    return (upper_array,)
+
+
+@app.cell
+def _(lower, mo):
+    lower_array = mo.ui.array(lower)
+    lower_array
+    return (lower_array,)
 
 
 @app.cell
 def _(mo):
-    upper_bound2 = mo.ui.slider(start=0, stop=3, step=0.001, 
-                                label="Upper bound 2", orientation="horizontal",
-                                show_value=True)
-    upper_bound2
-    return (upper_bound2,)
-
-
-@app.cell
-def _(mo):
-    upper_bound3 = mo.ui.slider(start=0, stop=3, step=0.001, 
-                                label="Upper bound 3", orientation="horizontal",
-                                show_value=True)
-    upper_bound3
-    return (upper_bound3,)
-
-
-@app.cell
-def _(mo):
-    lower_bound1 = mo.ui.slider(start=-3, stop=2, step=0.001, 
-                                label="Lower bound 1", orientation="horizontal",
-                                show_value=True)
-    lower_bound1
-    return (lower_bound1,)
-
-
-@app.cell
-def _(mo):
-    lower_bound2 = mo.ui.slider(start=-3, stop=2, step=0.001, 
-                                label="Lower bound 2", orientation="horizontal",
-                                show_value=True)
-    lower_bound2
-    return (lower_bound2,)
-
-
-@app.cell
-def _(mo):
-    sample_size = mo.ui.slider(start=1, stop=50, step=1, 
+    sample_size = mo.ui.slider(start=1, stop=50, step=0.1, 
                                 label="sample size", orientation="horizontal",
                                 show_value=True)
     sample_size
@@ -111,20 +155,17 @@ def _(mo):
 def _(
     delta0,
     delta1,
-    lower_bound1,
-    lower_bound2,
+    lower_array,
     num_analyses,
     sample_size,
     sigma2,
     sim,
-    upper_bound1,
-    upper_bound2,
-    upper_bound3,
+    upper_array,
 ):
     sim.group_sequential_designs(
-        n_analyses = num_analyses,
-        upper_bounds = [upper_bound1.value, upper_bound2.value, upper_bound3.value],
-        lower_bounds = [lower_bound1.value, lower_bound2.value, upper_bound3.value],
+        n_analyses = num_analyses.value,
+        upper_bounds = upper_array.value,
+        lower_bounds = lower_array.value+ [upper_array.value[num_analyses.value-1]],
         n_patients = sample_size.value,
         null_hypothesis = delta0,
         alt_hypothesis = delta1,
@@ -134,21 +175,35 @@ def _(
 
 
 @app.cell
-def _(
-    lower_bound1,
-    lower_bound2,
-    plt,
-    upper_bound1,
-    upper_bound2,
-    upper_bound3,
-):
+def _(delta0, lower_array, num_analyses, sample_size, sigma2, ss, upper_array):
+    ss.max_ess(
+        n_analyses = num_analyses.value,
+        upper_bounds = upper_array.value,
+        lower_bounds = lower_array.value+ [upper_array.value[num_analyses.value-1]],
+        n_patients = sample_size.value,
+        null_hypothesis = delta0,
+        variance = sigma2
+    )
+    return
+
+
+@app.cell
+def _(lower_array, num_analyses, plt, upper_array):
     _fig, _ax = plt.subplots()
 
-    upper_bounds = [upper_bound1.value, upper_bound2.value, upper_bound3.value]
-    lower_bounds = [lower_bound1.value, lower_bound2.value, upper_bound3.value]
+    _ax.plot(
+        [k+1 for k in range(num_analyses.value)], 
+        upper_array.value, 
+        color = "red", 
+        lw = 2
+    )
 
-    _ax.plot([1,2,3], upper_bounds, color = "red", lw = 2)
-    _ax.plot([1,2,3], lower_bounds, color = "red", lw = 2)
+    _ax.plot(
+        [m+1 for m in range(num_analyses.value)], 
+        lower_array.value + [upper_array.value[num_analyses.value-1]], 
+        color = "red", 
+        lw = 2
+    )
 
     _ax.set_ylim(-4,3)
 
