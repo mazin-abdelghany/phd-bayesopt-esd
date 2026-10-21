@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.16"
+__generated_with = "0.24.0"
 app = marimo.App(width="medium")
 
 
@@ -394,7 +394,7 @@ def _(column_runs_compare, datasets, pd, wason_included):
         else:
             table_data["best_constrained_design"] = [0.0] * 6
 
-        double_constrained = _df[(_df["alpha"] <= 0.05) & (_df["power"] >= 0.9)]
+        double_constrained = _df[(_df["alpha"] <= 0.05) & (_df["power"] >= 0.8999)]
         if not constrained.empty:
             best_d_constrained = double_constrained[double_constrained["obj_func"] == double_constrained["obj_func"].min()]
             table_data["best_d_constrained_design"] = best_d_constrained[summary_columns].iloc[0].to_numpy()
