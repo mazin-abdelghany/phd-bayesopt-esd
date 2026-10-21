@@ -509,18 +509,6 @@ def _(best_bound_getter, datasets, plt, stages, tri):
     return
 
 
-@app.cell
-def _(tri):
-    tri[0]
-    return
-
-
-@app.cell
-def _(best_bound_getter, datasets):
-    best_bound_getter(datasets["Method_2"])
-    return
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
