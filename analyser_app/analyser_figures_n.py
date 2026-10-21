@@ -203,7 +203,7 @@ def _(mo, num_methods):
     ])
 
     file_browser = mo.ui.file_browser(
-        initial_path = "/workspace/experiments_rand_simann_bo/",
+        initial_path = "/tf/experiments_rand_simann_bo/",
         label = "Select files in the order of the methods."
     )
 
@@ -466,7 +466,9 @@ def _(lower_boundary_value_labels, np, upper_boundary_value_labels):
         obj_f = np.round(data.loc[min_idx, "obj_func"], decimals=4)
         alpha = np.round(data.loc[min_idx, "alpha"], decimals=4)
         power = np.round(data.loc[min_idx, "power"], decimals=4)
-        return lower, upper, obj_f, alpha, power
+        ss = np.round(data.loc[min_idx, "sample_size"], decimals=1)
+        mess = np.round(data.loc[min_idx, "max_ess"],  decimals=1)
+        return lower, upper, obj_f, alpha, power, ss, mess
 
     return (best_bound_getter,)
 
@@ -478,7 +480,7 @@ def _(best_bound_getter, datasets, plt, stages, tri):
     _ax = _ax.flatten()
 
     for _idx, (_label, _data) in enumerate(datasets.items()):
-        _upper, _lower, _obj_f, _alpha, _power = best_bound_getter(_data)
+        _upper, _lower, _obj_f, _alpha, _power, _ss, _max_ess = best_bound_getter(_data)
         _b = _ax[_idx]
 
         _b.set_title(_label)
@@ -496,12 +498,26 @@ def _(best_bound_getter, datasets, plt, stages, tri):
         ):
             _b.text(0.98, _y, _txt, ha="right", va="top", transform=_b.transAxes)
 
+        _b.text(0.5, 0.19, f"n={_ss}", ha="right", va="top", transform=_b.transAxes)
+        _b.text(0.5, 0.1, f"mESS={_max_ess}", ha="right", va="top", transform=_b.transAxes)
         _b.legend(loc="lower right")
 
     _ax[0].set_ylabel("$Z_k$ values")
     _fig.suptitle("Best boundary", y=0.96)
     plt.tight_layout()
     plt.gca()
+    return
+
+
+@app.cell
+def _(tri):
+    tri[0]
+    return
+
+
+@app.cell
+def _(best_bound_getter, datasets):
+    best_bound_getter(datasets["Method_2"])
     return
 
 
@@ -525,7 +541,9 @@ def _(lower_boundary_value_labels, np, upper_boundary_value_labels):
         obj_f = np.round(constrained_data.loc[min_idx, "obj_func"], decimals=4)
         alpha = np.round(constrained_data.loc[min_idx, "alpha"], decimals=4)
         power = np.round(constrained_data.loc[min_idx, "power"], decimals=4)
-        return lower, upper, obj_f, alpha, power
+        ss = np.round(constrained_data.loc[min_idx, "sample_size"], decimals=1)
+        mess = np.round(constrained_data.loc[min_idx, "max_ess"],  decimals=1)
+        return lower, upper, obj_f, alpha, power, ss, mess
 
     return (best_constrained_bound_getter,)
 
@@ -537,7 +555,7 @@ def _(best_constrained_bound_getter, datasets, plt, stages, tri):
     _ax = _ax.flatten()
 
     for _idx, (_label, _data) in enumerate(datasets.items()):
-        _upper, _lower, _obj_f, _alpha, _power = best_constrained_bound_getter(_data)
+        _upper, _lower, _obj_f, _alpha, _power, _ss, _max_ess = best_constrained_bound_getter(_data)
         _b = _ax[_idx]
 
         _b.set_title(_label)
@@ -555,6 +573,8 @@ def _(best_constrained_bound_getter, datasets, plt, stages, tri):
         ):
             _b.text(0.98, _y, _txt, ha="right", va="top", transform=_b.transAxes)
 
+        _b.text(0.5, 0.19, f"n={_ss}", ha="right", va="top", transform=_b.transAxes)
+        _b.text(0.5, 0.1, f"mESS={_max_ess}", ha="right", va="top", transform=_b.transAxes)
         _b.legend(loc="lower right")
 
     _ax[0].set_ylabel("$Z_k$ values")
@@ -575,7 +595,8 @@ def _(mo):
 @app.cell
 def _(lower_boundary_value_labels, np, upper_boundary_value_labels):
     def best_double_constrained_bound_getter(data):
-        constrained_data = data[(data["alpha"] <= 0.05 )& (data["power"] >= 0.9)]
+        mask = (data["alpha"] <= 0.05 ) & (data["power"] >= 0.8999)
+        constrained_data = data[mask]
         if constrained_data.empty:
             constrained_data = data # fallback
         min_idx = constrained_data["obj_func"].idxmin()
@@ -584,7 +605,9 @@ def _(lower_boundary_value_labels, np, upper_boundary_value_labels):
         obj_f = np.round(constrained_data.loc[min_idx, "obj_func"], decimals=4)
         alpha = np.round(constrained_data.loc[min_idx, "alpha"], decimals=4)
         power = np.round(constrained_data.loc[min_idx, "power"], decimals=4)
-        return lower, upper, obj_f, alpha, power
+        ss = np.round(constrained_data.loc[min_idx, "sample_size"], decimals=1)
+        mess = np.round(constrained_data.loc[min_idx, "max_ess"],  decimals=1)
+        return lower, upper, obj_f, alpha, power, ss, mess
 
     return (best_double_constrained_bound_getter,)
 
@@ -596,7 +619,7 @@ def _(best_double_constrained_bound_getter, datasets, plt, stages, tri):
     _ax = _ax.flatten()
 
     for _idx, (_label, _data) in enumerate(datasets.items()):
-        _upper, _lower, _obj_f, _alpha, _power = best_double_constrained_bound_getter(_data)
+        _upper, _lower, _obj_f, _alpha, _power, _ss, _max_ess = best_double_constrained_bound_getter(_data)
         _b = _ax[_idx]
 
         _b.set_title(_label)
@@ -614,6 +637,8 @@ def _(best_double_constrained_bound_getter, datasets, plt, stages, tri):
         ):
             _b.text(0.98, _y, _txt, ha="right", va="top", transform=_b.transAxes)
 
+        _b.text(0.5, 0.19, f"n={_ss}", ha="right", va="top", transform=_b.transAxes)
+        _b.text(0.5, 0.1, f"mESS={_max_ess}", ha="right", va="top", transform=_b.transAxes)
         _b.legend(loc="lower right")
 
     _ax[0].set_ylabel("$Z_k$ values")
