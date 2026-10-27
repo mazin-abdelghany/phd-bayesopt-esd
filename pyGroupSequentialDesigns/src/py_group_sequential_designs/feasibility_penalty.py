@@ -203,6 +203,59 @@ def tub_no_beta(
     else:
         return (alpha_factor * loss_alpha) + (max_ess_factor * loss_max_ess)
 
+def tub_paraboloid(
+        power,
+        alpha,
+        alpha_prime,
+        beta_prime,
+        min_sample_size,
+        max_sample_size,
+        max_ess,
+        alpha_epsilon = 0.005,
+        beta_epsilon = 0.01,
+        alpha_factor = 1,
+        beta_factor = 1,
+        max_ess_factor = 1):
+
+    # calculate beta from power
+    beta = 1-power
+
+    # eps ensures that machine precision does not alter inequality meaning
+    alpha_met = (-alpha_epsilon - eps <= alpha_prime - alpha) & (alpha_prime - alpha <= eps)
+    beta_met = (-beta_epsilon - eps <= beta_prime - beta) & (beta_prime - beta <= eps)
+
+    # calculate the loss values
+    loss_alpha = (alpha_prime - alpha)**2
+    loss_beta = (beta_prime - beta)**2
+    loss_max_ess = max_ess / (max_sample_size - min_sample_size)
+
+    if (alpha_met and beta_met):
+        return max_ess_factor * loss_max_ess
+    else:
+        return (alpha_factor * loss_alpha) + (beta_factor * loss_beta) + (max_ess_factor * loss_max_ess)
+
+def tub_paraboloid_no_beta(
+        alpha,
+        alpha_prime,
+        min_sample_size,
+        max_sample_size,
+        max_ess,
+        alpha_epsilon = 0.005,
+        alpha_factor = 1,
+        max_ess_factor = 1):
+
+    # eps ensures that machine precision does not alter inequality meaning
+    alpha_met = (-alpha_epsilon - eps <= alpha_prime - alpha) & (alpha_prime - alpha <= eps)
+
+    # calculate the loss values
+    loss_alpha = (alpha_prime - alpha)**2
+    loss_max_ess = max_ess / (max_sample_size - min_sample_size)
+
+    if alpha_met:
+        return max_ess_factor * loss_max_ess
+    else:
+        return (alpha_factor * loss_alpha) + (max_ess_factor * loss_max_ess)
+
 def tub_w_max_ss(
         power,
         alpha,
