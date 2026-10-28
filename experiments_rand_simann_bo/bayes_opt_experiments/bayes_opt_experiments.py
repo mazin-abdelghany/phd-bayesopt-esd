@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.24.0"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -181,7 +181,7 @@ def _(fn_min, fp, remove_n_beta, scaled_loss, sim, ss):
             beta_prime = 1-trial_sim[1]
 
             if remove_n_beta.value:
-                penalty = fp.tub_no_beta(
+                penalty = fp.tub_paraboloid_no_beta(
                     alpha = target_alpha,
                     alpha_prime = alpha_prime,
                     min_sample_size=min_sample_size,
@@ -535,8 +535,8 @@ def _(mo):
 
 @app.cell
 def _():
-    n_experiments = 50
-    n_loops = 500
+    n_experiments = 25
+    n_loops = 1000
     return n_experiments, n_loops
 
 
@@ -1271,21 +1271,22 @@ def _(
     else:
         file_name += "_smooth_loss"
 
-    if remove_n_beta.value:
-        file_name += "_no_n"
-
     file_name += "_" + str(n_experiments) + "x" + str(n_loops + num_haltons.value)
 
-    if scale_input.value:
-        file_name += "_x_min_max"
-    if scale_output.value:
-        file_name += "_y_z_scaled"
     if do_not_train_error.value:
         file_name += "_" + str(radio.value)
 
     file_name += "_" + str(num_haltons.value) + "haltons"
 
-    file_name += "_high_prec"
+    if scale_input.value:
+        file_name += "_x_min_max"
+    if scale_output.value:
+        file_name += "_y_z_scaled"
+
+    file_name += "_tub_parab_100_8_high_prec"
+
+    if remove_n_beta.value:
+        file_name += "_no_n"
 
     file_name += ".csv"
     return (file_name,)
