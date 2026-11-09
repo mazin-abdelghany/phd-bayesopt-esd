@@ -14,7 +14,7 @@ def _():
 
 @app.cell
 def _(ctypes):
-    asym = ctypes.CDLL("/tf/asym.so")
+    asym = ctypes.CDLL("/tf/2026-10-t23/asym.so")
     return (asym,)
 
 
@@ -40,7 +40,7 @@ def _(asym, ctypes):
     )
 
     asym.find_opt_asym_gst.restype = ctypes.c_int
-    return L, MatrixType
+    return L, MatrixType, RowType
 
 
 @app.cell
@@ -65,13 +65,11 @@ def _(L, MatrixType, asym, ctypes):
     # Negative values request that the function choose starting costs
     costs = (ctypes.c_double * 2)(-1.0, -1.0)
 
-    print(list(num))
-
     result = asym.find_opt_asym_gst(
         alpha, delta, sigma, 1,
         num, limits, exits, 3, costs
     )
-    return costs, exits, limits
+    return alpha, costs, delta, exits, limits, num, result, sigma
 
 
 @app.cell
@@ -81,6 +79,137 @@ def _(costs, exits, limits):
     print("Upper boundaries:", list(limits[2]))
     print("Lower exit probabilities:", list(exits[1]))
     print("Upper exit probabilities:", list(exits[2]))
+    return
+
+
+@app.cell
+def _(result):
+    result
+    return
+
+
+@app.cell
+def _(ctypes):
+    py_asym = ctypes.CDLL("/tf/2026-10-t23/py_asym.so")
+    return (py_asym,)
+
+
+@app.cell
+def _(RowType, ctypes, py_asym):
+    py_asym.py_asym_driver.argtypes = (
+        ctypes.POINTER(ctypes.c_double),  # alpha: double *
+        ctypes.c_double,                  # delta: double
+        ctypes.c_double,                  # sigma: double
+        ctypes.POINTER(ctypes.c_double),  # num: double *
+        ctypes.POINTER(RowType),          # limits: double [3][L]
+        ctypes.POINTER(RowType),          # lbexits: double [3][L]
+        ctypes.POINTER(RowType),          # ubexits: double [3][L]
+        ctypes.POINTER(ctypes.c_double),  # objectives: double *
+        ctypes.POINTER(ctypes.c_double),  # costs: double *
+        ctypes.c_double,                  # lambda: double    
+        ctypes.c_int,                     # obj: int
+        ctypes.c_int,                     # K: int
+    )
+
+    py_asym.py_asym_driver.restype = ctypes.c_int
+    return
+
+
+@app.cell
+def _(MatrixType, alpha, costs, ctypes, delta, limits, num, py_asym, sigma):
+    # declare necessary inputs
+    objectives = (ctypes.c_double * 12)(*([0.0] * 12))
+    lbexits = MatrixType()
+    ubexits = MatrixType()
+
+    # Negative values request that the function choose starting costs
+    costs_l = (ctypes.c_double * 2)(-1.0, -1.0)
+
+    # lambda for L_lambda objective
+    l_lambda = (ctypes.c_double)(0.5)
+
+    result_l = py_asym.py_asym_driver(
+        alpha,
+        delta,
+        sigma,
+        num,
+        limits,
+        lbexits,
+        ubexits,
+        objectives,
+        costs,
+        l_lambda,
+        6,
+        3
+    )
+    return lbexits, ubexits
+
+
+@app.cell
+def _(costs, lbexits, limits, ubexits):
+    print("Optimal costs:", list(costs))
+    print("Lower boundaries:", list(limits[1]))
+    print("Upper boundaries:", list(limits[2]))
+    print("Efficacy alt:", list(lbexits[2]))
+    print("Futility alt:", list(lbexits[1]))
+    print("Cumu lower error:", list(lbexits[0]))
+    print("Efficacy null:", list(ubexits[2]))
+    print("Futility null:", list(ubexits[1]))
+    print("Cumu upper error:", list(ubexits[0]))
+    return
+
+
+@app.cell
+def _():
+    from py_group_sequential_designs import generate_boundaries as bd
+
+    return (bd,)
+
+
+@app.cell
+def _(bd):
+    # null optimal design
+    bd.calculate_bayes_dec_boundaries(
+        n_analyses=3,
+        alpha=0.05,
+        beta=0.1,
+        delta=1,
+        variance=9,
+        n_per_stage=64,
+        obj_func=6,
+        l_lambda=0
+    )
+    return
+
+
+@app.cell
+def _(bd):
+    # calculate F2, should be same as below
+    bd.calculate_bayes_dec_boundaries(
+        n_analyses=3,
+        alpha=0.05,
+        beta=0.1,
+        delta=1,
+        variance=9,
+        n_per_stage=64,
+        obj_func=2
+    )
+    return
+
+
+@app.cell
+def _(bd):
+    # with lambda = 0.5, F6 is same as F2
+    bd.calculate_bayes_dec_boundaries(
+        n_analyses=3,
+        alpha=0.05,
+        beta=0.1,
+        delta=1,
+        variance=9,
+        n_per_stage=64,
+        obj_func=6,
+        l_lambda=0.5
+    )
     return
 
 
