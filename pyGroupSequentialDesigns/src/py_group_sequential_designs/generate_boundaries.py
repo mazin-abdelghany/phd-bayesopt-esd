@@ -1,5 +1,9 @@
 import numpy as np
 
+# C shared object library imports and definitions for Bayes decision boundaries
+import ctypes
+from pathlib import Path
+
 from . import simulate as sim
 
 # Pocock boundaries
@@ -159,3 +163,135 @@ def calculate_triangular_boundaries(
         e_l,
         f_l
     ]
+
+
+
+# Variables and types that match the C code
+L = 110
+
+# In C, double limits[3][L] as a function parameter is double (*limits)[L]
+RowType = ctypes.c_double * L
+MatrixType = RowType * 3
+
+# load the shared object file
+py_asym_so_path = Path(__file__).resolve().parent / "py_asym.so"
+py_asym = ctypes.CDLL(str(py_asym_so_path))
+
+# input types to py_asym_driver
+py_asym.py_asym_driver.argtypes = (
+    ctypes.POINTER(ctypes.c_double),  # alpha: double *
+    ctypes.c_double,                  # delta: double
+    ctypes.c_double,                  # sigma: double
+    ctypes.POINTER(ctypes.c_double),  # num: double *
+    ctypes.POINTER(RowType),          # limits: double [3][L]
+    ctypes.POINTER(RowType),          # lbexits: double [3][L]
+    ctypes.POINTER(RowType),          # ubexits: double [3][L]
+    ctypes.POINTER(ctypes.c_double),  # objectives: double *
+    ctypes.POINTER(ctypes.c_double),  # costs: double *
+    ctypes.c_double,                  # lambda: double    
+    ctypes.c_int,                     # obj: int
+    ctypes.c_int,                     # K: int
+)
+
+# return type
+py_asym.py_asym_driver.restype = ctypes.c_int
+
+# Bayes decision boundaries
+def calculate_bayes_dec_boundaries(
+        n_analyses,
+        alpha,
+        beta,
+        delta,
+        variance,
+        n_per_stage,
+        obj_func,
+        l_lambda = None,
+        return_costs = False):
+
+    if (obj_func == 6) and (l_lambda is None):
+        raise ValueError("l_lambda must be set to calculate under F6")
+
+    # convert delta H_0 = -delta, H_1 = delta to H_0 = 0 and H_1 = delta
+    delta_prime = (ctypes.c_double)(delta / 2)
+
+    # standard deviation on sum scale
+    sigma_p = (ctypes.c_double)(np.sqrt(2 * variance))
+
+    # alpha[0] = type II error (beta)
+    # alpha[1] = type I error
+    alpha_cinput = (ctypes.c_double * 2)(beta, alpha)
+
+    # create array for number of patients input
+    if L < n_analyses + 1:
+        raise ValueError("L must be >= n_analyses + 1")
+    
+    values = (
+        [0.0] 
+        + [n_per_stage * (i+1) for i in range(n_analyses)] 
+        + [0.0] * (L - (n_analyses + 1))
+    )
+    num = (ctypes.c_double * L)(*values)
+
+    # declare necessary inputs
+    limits = MatrixType()
+    lbexits = MatrixType()
+    ubexits = MatrixType()
+    objectives = (ctypes.c_double * 12)(*([0.0] * 12))
+
+    # Negative values request that the function choose starting costs
+    costs = (ctypes.c_double * 2)(-1.0, -1.0)
+
+    l_lambda = (ctypes.c_double)(l_lambda if l_lambda is not None else 0.5)
+    
+    obj_func_c = (ctypes.c_int)(obj_func)
+    n_analyses_c = (ctypes.c_int)(n_analyses)
+
+    result_l = py_asym.py_asym_driver(
+        alpha_cinput,
+        delta_prime,
+        sigma_p,
+        num,
+        limits,
+        lbexits,
+        ubexits,
+        objectives,
+        costs,
+        l_lambda,
+        obj_func_c,
+        n_analyses_c)
+
+    # function to reparameterize to Z scale bounds
+    def _sum_to_z_scale(
+            sum_lower,
+            sum_upper,
+            n_per_stage,
+            delta):
+
+        # cumulative number of patients
+        n = np.array([n_per_stage * (i+1) for i in range(n_analyses)])
+
+        z_lower = (sum_lower + n * delta / 2) / (sigma_p * np.sqrt(n))
+        z_upper = (sum_upper + n * delta / 2) / (sigma_p * np.sqrt(n))
+
+        return [
+            z_upper,
+            z_lower
+        ]
+
+    sum_lower = list(limits[1])[1:n_analyses+1]
+    sum_upper = list(limits[2])[1:n_analyses+1]
+    
+    bounds = _sum_to_z_scale(
+        sum_lower = sum_lower,
+        sum_upper = sum_upper,
+        n_per_stage = n_per_stage,
+        delta = delta
+    )
+
+    if return_costs:
+        return [
+            bounds,
+            list(costs)
+        ]
+    
+    return bounds
