@@ -246,7 +246,7 @@ def calculate_bayes_dec_boundaries(
     obj_func_c = (ctypes.c_int)(obj_func)
     n_analyses_c = (ctypes.c_int)(n_analyses)
 
-    result_l = py_asym.py_asym_driver(
+    info = py_asym.py_asym_driver(
         alpha_cinput,
         delta_prime,
         sigma_p,
@@ -291,6 +291,7 @@ def calculate_bayes_dec_boundaries(
     if return_costs:
         return [
             bounds,
+            info,
             list(costs)
         ]
     
