@@ -56,15 +56,6 @@ def _():
 
 
 @app.cell
-def _(np):
-    n_per_stage = np.linspace(45, 155, 111)
-    rgb_x = np.linspace(0, 1, 111)
-
-    deltas = np.linspace(0, 1, 200)
-    return deltas, n_per_stage, rgb_x
-
-
-@app.cell
 def _(bd, delta, n_analyses):
     tri = bd.calculate_triangular_boundaries(
         n_analyses=n_analyses,
@@ -80,23 +71,28 @@ def _(
     bd,
     beta,
     delta,
-    deltas,
     info_dict,
     mpl,
     n_analyses,
-    n_per_stage,
     np,
     null,
     obj_func,
     plt,
-    rgb_x,
     sim,
     variance,
 ):
-    fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(12,8), layout="constrained")
-    first_few_fig, first_few_ax = plt.subplots(nrows=2, ncols=1, figsize=(12,8), layout="constrained")
+    n_per_stage = np.linspace(45, 155, 111)
+    curve_count = 18
+    rgb_x = np.linspace(0, 1, 111)
+    rgb_small = np.linspace(0, 1, curve_count)
+
+    deltas = np.linspace(0, 1, 200)
 
     rgb_array = mpl.colormaps["PuOr"](rgb_x)[:, :3]
+    small_rgb_array = mpl.colormaps["viridis"](rgb_small)[:, :3]
+
+    fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(12,8), layout="constrained")
+    first_few_fig, first_few_ax = plt.subplots(nrows=2, ncols=1, figsize=(12,8), layout="constrained")
 
     failed_n_lambda0 = []
     failed_n_lambda1 = []
@@ -109,6 +105,9 @@ def _(
 
     min_ess_null_n = None
     min_ess_alt_n = None
+
+    first_success_null = False
+    first_success_alt = False
 
     for i, n in enumerate(n_per_stage):
         power0 = None
@@ -143,6 +142,14 @@ def _(
 
         fail_indicator_lambda0 = cost_and_bounds_lambda0[3]
         fail_indicator_lambda1 = cost_and_bounds_lambda1[3]
+
+        if (fail_indicator_lambda0 == 1) and not first_success_null:
+            first_success_null = True
+            n_start_null = n
+
+        if (fail_indicator_lambda1 == 1) and not first_success_alt:
+            first_success_alt = True
+            n_start_alt = n
 
         # Record failures 
         if fail_indicator_lambda0 != 1:
@@ -194,10 +201,10 @@ def _(
                 if d == 1:
                     power1 = simu_lambda1[1]
 
-        if (fail_indicator_lambda1 == 1) and (min_ess_null > ess_alt_lambda0[0]):
+        if (fail_indicator_lambda0 == 1) and (min_ess_null > ess_alt_lambda0[0]):
             min_ess_null = ess_alt_lambda0[0]
             min_ess_null_n = n
-        
+
         if (fail_indicator_lambda1 == 1) and (min_ess_alt > ess_alt_lambda1[-1]):
             min_ess_alt = ess_alt_lambda1[-1]
             min_ess_alt_n = n
@@ -205,23 +212,25 @@ def _(
         # Plot successful designs 
         if (fail_indicator_lambda0 == 1) and (power0 is not None) and (power0 > 0.8999):
             ax[0].plot(deltas, ess_alt_lambda0, c=tuple(rgb_array[i]))
+            n_end_null = n
 
         if (fail_indicator_lambda1 == 1) and (power1 is not None) and (power1 > 0.8999):
             ax[1].plot(deltas, ess_alt_lambda1, c=tuple(rgb_array[i]))
+            n_end_alt = n
 
         # plot first few designs to assess differences
-        if (fail_indicator_lambda0 == 1) and (power0 is not None) and (power0 > 0.8999) and (i < 19):
-            first_few_ax[0].plot(deltas, ess_alt_lambda0, c=tuple(rgb_array[i]))
+        if (fail_indicator_lambda0 == 1) and (power0 is not None) and (power0 > 0.8999) and (i < curve_count):
+            first_few_ax[0].plot(deltas, ess_alt_lambda0, c=tuple(small_rgb_array[i]))
             first_few_ax[0].text(1.01, ess_alt_lambda0[-1]-1, str(n))
+            n_end_null_small = n
 
-        if (fail_indicator_lambda1 == 1) and (power1 is not None) and (power1 > 0.8999) and (i < 19):
-            first_few_ax[1].plot(deltas, ess_alt_lambda1, c=tuple(rgb_array[i]))
+        if (fail_indicator_lambda1 == 1) and (power1 is not None) and (power1 > 0.8999) and (i < curve_count):
+            first_few_ax[1].plot(deltas, ess_alt_lambda1, c=tuple(small_rgb_array[i]))
             first_few_ax[1].text(-0.04, ess_alt_lambda1[0]-1, str(n))
-
-        # find the minimum ess at null / alternative and the n at which this is achieved
-    
+            n_end_alt_small = n
     return (
         ax,
+        deltas,
         failed_n_lambda0,
         failed_n_lambda1,
         failed_reason_lambda0,
@@ -233,23 +242,45 @@ def _(
         min_ess_alt_n,
         min_ess_null,
         min_ess_null_n,
+        n_end_alt,
+        n_end_alt_small,
+        n_end_null,
+        n_end_null_small,
+        n_start_alt,
+        n_start_null,
         rgb_array,
     )
 
 
 @app.cell
-def _(ax, fig, mpl):
-    sm = mpl.cm.ScalarMappable(
-        norm=mpl.colors.Normalize(vmin=52, vmax=152),
+def _(
+    ax,
+    deltas,
+    fig,
+    mpl,
+    n_analyses,
+    n_end_alt,
+    n_end_null,
+    n_start_alt,
+    n_start_null,
+    null,
+    sim,
+    tri,
+    variance,
+):
+    sm_null = mpl.cm.ScalarMappable(
+        norm=mpl.colors.Normalize(vmin=n_start_null, vmax=n_end_null),
         cmap="PuOr"
     )
 
-    fig.colorbar(sm, ax=ax, label="Per stage sample size")
-    return (sm,)
+    sm_alt = mpl.cm.ScalarMappable(
+        norm=mpl.colors.Normalize(vmin=n_start_alt, vmax=n_end_alt),
+        cmap="PuOr"
+    )
 
+    fig.colorbar(sm_null, ax=ax[0], label="Per stage sample size")
+    fig.colorbar(sm_alt, ax=ax[1], label="Per stage sample size")
 
-@app.cell
-def _(deltas, n_analyses, null, sim, tri, variance):
     tri_ess = []
     for m, l in enumerate(deltas):
         tri_ess.append(sim.group_sequential_designs(
@@ -279,6 +310,31 @@ def _(ax, deltas, fig, tri_ess):
     ax[1].plot(deltas, tri_ess, color = "red")
 
     fig
+    return
+
+
+@app.cell
+def _(
+    first_few_ax,
+    first_few_fig,
+    mpl,
+    n_end_alt_small,
+    n_end_null_small,
+    n_start_alt,
+    n_start_null,
+):
+    bar_col_null = mpl.cm.ScalarMappable(
+        norm=mpl.colors.Normalize(vmin=n_start_null, vmax=n_end_null_small),
+        cmap="viridis"
+    )
+
+    bar_col_alt = mpl.cm.ScalarMappable(
+        norm=mpl.colors.Normalize(vmin=n_start_alt, vmax=n_end_alt_small),
+        cmap="viridis"
+    )
+
+    first_few_fig.colorbar(bar_col_null, ax=first_few_ax[0], label="Per stage sample size")
+    first_few_fig.colorbar(bar_col_alt, ax=first_few_ax[1], label="Per stage sample size")
     return
 
 
