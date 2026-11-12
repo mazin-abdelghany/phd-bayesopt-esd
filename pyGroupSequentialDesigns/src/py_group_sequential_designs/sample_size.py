@@ -41,7 +41,7 @@ def max_ess(
     delta_stop = variance**0.5 * 10 
     
     def run_sim(delta):
-        _, _, ess = sim.group_sequential_designs(
+        _, _, _, ess = sim.group_sequential_designs(
             n_analyses=n_analyses,
             upper_bounds=upper_bounds,
             lower_bounds=lower_bounds,

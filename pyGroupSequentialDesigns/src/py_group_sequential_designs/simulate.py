@@ -185,7 +185,8 @@ def group_sequential_designs(
 
     alpha = efficacy_null.sum()
     power = efficacy_alt.sum()
-    expected_sample_size = np.sum((futility_alt + efficacy_alt) * n_patients_analysis)
+    ess_null = np.sum((futility_null + efficacy_null) * n_patients_analysis)
+    ess_alt = np.sum((futility_alt + efficacy_alt) * n_patients_analysis)
 
     if return_table == True:
         # fill a DataFrame with the outputs
@@ -196,9 +197,9 @@ def group_sequential_designs(
             "efficacy_alt": efficacy_alt,
         }, index=[f"analysis_{i}" for i in range(1, n_analyses + 1)])
 
-        return alpha, power, expected_sample_size, probs_to_return
+        return alpha, power, ess_null, ess_alt, probs_to_return
     else:
-        return alpha, power, expected_sample_size
+        return alpha, power, ess_null, ess_alt
 
 def group_sequential_designs_scipy(
     n_analyses=3,
