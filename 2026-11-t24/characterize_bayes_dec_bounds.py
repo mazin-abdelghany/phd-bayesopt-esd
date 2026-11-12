@@ -292,7 +292,7 @@ def _(
             alt_hypothesis=l,
             variance=variance
         )[3])
-    return (tri_ess,)
+    return sm_null, tri_ess
 
 
 @app.cell(expand_output=True)
@@ -436,8 +436,8 @@ def _(bd, delta, deltas, n_analyses, np, null, plt, rgb_array, sim, variance):
 
 
 @app.cell
-def _(ax2, fig2, sm):
-    fig2.colorbar(sm, ax=ax2, label="Per stage sample size")
+def _(ax2, fig2, sm_null):
+    fig2.colorbar(sm_null, ax=ax2, label="Per stage sample size")
 
     ax2.set_title("ESS under alternative across deltas - Triangular")
     ax2.set_xlabel("Delta")
