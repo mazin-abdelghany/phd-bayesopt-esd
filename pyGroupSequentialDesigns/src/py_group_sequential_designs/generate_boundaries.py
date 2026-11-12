@@ -206,7 +206,7 @@ def calculate_bayes_dec_boundaries(
         n_per_stage,
         obj_func,
         l_lambda = None,
-        return_costs = False):
+        return_all = False):
 
     if (obj_func == 6) and (l_lambda is None):
         raise ValueError("l_lambda must be set to calculate under F6")
@@ -265,13 +265,14 @@ def calculate_bayes_dec_boundaries(
             sum_lower,
             sum_upper,
             n_per_stage,
-            delta):
+            delta,
+            sigma):
 
         # cumulative number of patients
         n = np.array([n_per_stage * (i+1) for i in range(n_analyses)])
 
-        z_lower = (sum_lower + n * delta / 2) / (sigma_p * np.sqrt(n))
-        z_upper = (sum_upper + n * delta / 2) / (sigma_p * np.sqrt(n))
+        z_lower = (sum_lower + n * delta / 2) / (sigma * np.sqrt(n))
+        z_upper = (sum_upper + n * delta / 2) / (sigma * np.sqrt(n))
 
         return [
             z_upper,
@@ -285,12 +286,15 @@ def calculate_bayes_dec_boundaries(
         sum_lower = sum_lower,
         sum_upper = sum_upper,
         n_per_stage = n_per_stage,
-        delta = delta
+        delta = delta,
+        sigma = sigma_p
     )
 
-    if return_costs:
+    if return_all:
         return [
             bounds,
+            sum_lower,
+            sum_upper,
             info,
             list(costs)
         ]
