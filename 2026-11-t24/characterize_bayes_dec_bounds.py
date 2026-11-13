@@ -35,7 +35,7 @@ def _():
         5 : "poor progress, last ten iterations",
         6 : "success, near window",
         7 : "success, bad residual",
-        8 : "success, near windown and bad residual"
+        8 : "success, near window and bad residual"
     }
     return (info_dict,)
 
@@ -484,16 +484,16 @@ def _(bbb, delta, n_analyses, null, sim, test_n, variance):
 
 
 @app.cell
-def _(alpha, bd, beta, delta, n_analyses, obj_func, test_n, variance):
+def _(alpha, bd, beta, delta, n_analyses, obj_func, variance):
     bounds = bd.calculate_bayes_dec_boundaries(
         n_analyses,
         alpha,
         beta,
         delta,
         variance,
-        test_n,
+        62,
         obj_func,
-        l_lambda=0
+        l_lambda=1
     )
     return (bounds,)
 
@@ -535,7 +535,7 @@ def _(delta, n_analyses, null, sim, tri, variance):
         n_analyses=n_analyses,
         upper_bounds=tri[0],
         lower_bounds=tri[1],
-        n_patients=64,
+        n_patients=62,
         null_hypothesis=null,
         alt_hypothesis=delta,
         variance=variance,
