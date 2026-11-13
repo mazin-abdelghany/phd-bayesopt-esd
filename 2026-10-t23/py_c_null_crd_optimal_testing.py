@@ -106,7 +106,8 @@ def _(RowType, ctypes, py_asym):
         ctypes.POINTER(RowType),          # ubexits: double [3][L]
         ctypes.POINTER(ctypes.c_double),  # objectives: double *
         ctypes.POINTER(ctypes.c_double),  # costs: double *
-        ctypes.c_double,                  # lambda: double    
+        ctypes.c_double,                  # lambda: double
+        ctypes.c_double,                  # eta: double
         ctypes.c_int,                     # obj: int
         ctypes.c_int,                     # K: int
     )
@@ -127,6 +128,7 @@ def _(MatrixType, alpha, costs, ctypes, delta, limits, num, py_asym, sigma):
 
     # lambda for L_lambda objective
     l_lambda = (ctypes.c_double)(0.5)
+    eta = (ctypes.c_double)(0)
 
     result_l = py_asym.py_asym_driver(
         alpha,
@@ -139,6 +141,7 @@ def _(MatrixType, alpha, costs, ctypes, delta, limits, num, py_asym, sigma):
         objectives,
         costs,
         l_lambda,
+        eta,
         6,
         3
     )
@@ -184,7 +187,7 @@ def _(bd):
 
 @app.cell
 def _(bd):
-    # calculate F2, should be same as below
+    # calculate F2
     bd.calculate_bayes_dec_boundaries(
         n_analyses=3,
         alpha=0.05,
@@ -209,6 +212,101 @@ def _(bd):
         n_per_stage=64,
         obj_func=6,
         l_lambda=0.5
+    )
+    return
+
+
+@app.cell
+def _(bd):
+    # calculate F1
+    bd.calculate_bayes_dec_boundaries(
+        n_analyses=3,
+        alpha=0.05,
+        beta=0.1,
+        delta=1,
+        variance=9,
+        n_per_stage=64,
+        obj_func=1
+    )
+    return
+
+
+@app.cell
+def _(bd):
+    # F7 = F1 when eta = 0
+    bd.calculate_bayes_dec_boundaries(
+        n_analyses=3,
+        alpha=0.05,
+        beta=0.1,
+        delta=1,
+        variance=9,
+        n_per_stage=64,
+        obj_func=7,
+        eta = 0
+    )
+    return
+
+
+@app.cell
+def _(bd):
+    # calculate F6, lambda = 1
+    bd.calculate_bayes_dec_boundaries(
+        n_analyses=3,
+        alpha=0.05,
+        beta=0.1,
+        delta=1,
+        variance=9,
+        n_per_stage=64,
+        obj_func=6,
+        l_lambda=1
+    )
+    return
+
+
+@app.cell
+def _(bd):
+    # F7 = F6 when eta = delta and lambda = 1
+    bd.calculate_bayes_dec_boundaries(
+        n_analyses=3,
+        alpha=0.05,
+        beta=0.1,
+        delta=1,
+        variance=9,
+        n_per_stage=64,
+        obj_func=7,
+        eta = 1
+    )
+    return
+
+
+@app.cell
+def _(bd):
+    # calculate F6, lambda = 0
+    bd.calculate_bayes_dec_boundaries(
+        n_analyses=3,
+        alpha=0.05,
+        beta=0.1,
+        delta=1,
+        variance=9,
+        n_per_stage=64,
+        obj_func=6,
+        l_lambda=0
+    )
+    return
+
+
+@app.cell
+def _(bd):
+    # F7 = F6 when eta = 0 and lambda = 1
+    bd.calculate_bayes_dec_boundaries(
+        n_analyses=3,
+        alpha=0.05,
+        beta=0.1,
+        delta=1,
+        variance=9,
+        n_per_stage=64,
+        obj_func=7,
+        eta = 0
     )
     return
 
