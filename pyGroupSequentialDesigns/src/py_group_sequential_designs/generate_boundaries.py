@@ -188,7 +188,8 @@ py_asym.py_asym_driver.argtypes = (
     ctypes.POINTER(RowType),          # ubexits: double [3][L]
     ctypes.POINTER(ctypes.c_double),  # objectives: double *
     ctypes.POINTER(ctypes.c_double),  # costs: double *
-    ctypes.c_double,                  # lambda: double    
+    ctypes.c_double,                  # lambda: double
+    ctypes.c_double,                  # eta: double
     ctypes.c_int,                     # obj: int
     ctypes.c_int,                     # K: int
 )
@@ -206,12 +207,16 @@ def calculate_bayes_dec_boundaries(
         n_per_stage,
         obj_func,
         l_lambda = None,
+        eta = None,
         return_all = False):
 
     if (obj_func == 6) and (l_lambda is None):
         raise ValueError("l_lambda must be set to calculate under F6")
 
-    # convert delta H_0 = -delta, H_1 = delta to H_0 = 0 and H_1 = delta
+    if (obj_func == 7) and (eta is None):
+        raise ValueError("eta must be set to calculate under F7")
+
+    # convert delta H_0 = -delta', H_1 = delta' to H_0 = 0 and H_1 = delta
     delta_prime = (ctypes.c_double)(delta / 2)
 
     # standard deviation on sum scale
@@ -242,6 +247,12 @@ def calculate_bayes_dec_boundaries(
     costs = (ctypes.c_double * 2)(-1.0, -1.0)
 
     l_lambda = (ctypes.c_double)(l_lambda if l_lambda is not None else 0.5)
+    eta = (ctypes.c_double)(eta if eta is not None else 0)
+
+    # eta is given by the user parameterized as H0 = 0 and H1 = delta, so it 
+    # must be reparameterized to the scale expected by the C driver, which
+    # is H0 = -delta' and H1 = delta'
+    eta_prime = (ctypes.c_double)(eta.value - delta_prime.value)
     
     obj_func_c = (ctypes.c_int)(obj_func)
     n_analyses_c = (ctypes.c_int)(n_analyses)
@@ -257,6 +268,7 @@ def calculate_bayes_dec_boundaries(
         objectives,
         costs,
         l_lambda,
+        eta_prime,
         obj_func_c,
         n_analyses_c)
 
