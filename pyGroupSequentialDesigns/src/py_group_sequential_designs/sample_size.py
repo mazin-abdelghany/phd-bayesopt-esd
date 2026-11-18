@@ -117,7 +117,7 @@ def find_sample_size(
 
         n_mid = (n_patients_min + n_patients_max) / 2
 
-        _, power_mid, _ = sim.group_sequential_designs(
+        _, power_mid, _, _ = sim.group_sequential_designs(
             n_analyses = n_analyses,
             upper_bounds = upper_bounds,
             lower_bounds = lower_bounds,
