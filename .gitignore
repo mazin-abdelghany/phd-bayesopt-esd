@@ -24,3 +24,6 @@
 
 # ignore large data files
 /experiments_rand_simann_bo/**/*10x230k.csv
+
+# ignore shared objects
+*.so
