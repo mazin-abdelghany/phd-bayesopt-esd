@@ -86,7 +86,7 @@ def _(
     rgb_x = np.linspace(0, 1, 111)
     rgb_small = np.linspace(0, 1, curve_count)
 
-    deltas = np.linspace(0, 1, 200)
+    deltas = np.linspace(0, 1, 201)
 
     rgb_array = mpl.colormaps["PuOr"](rgb_x)[:, :3]
     small_rgb_array = mpl.colormaps["viridis"](rgb_small)[:, :3]
@@ -122,7 +122,7 @@ def _(
             n,
             obj_func,
             l_lambda = 0,
-            return_costs=True
+            return_all=True
         )
 
         cost_and_bounds_lambda1 = bd.calculate_bayes_dec_boundaries(
@@ -134,7 +134,7 @@ def _(
             n,
             obj_func,
             l_lambda = 1,
-            return_costs=True
+            return_all=True
         )
 
         bounds_lambda0 = cost_and_bounds_lambda0[0]
@@ -246,6 +246,7 @@ def _(
         n_end_alt_small,
         n_end_null,
         n_end_null_small,
+        n_per_stage,
         n_start_alt,
         n_start_null,
         rgb_array,
@@ -282,7 +283,7 @@ def _(
     fig.colorbar(sm_alt, ax=ax[1], label="Per stage sample size")
 
     tri_ess = []
-    for m, l in enumerate(deltas):
+    for l in deltas:
         tri_ess.append(sim.group_sequential_designs(
             n_analyses=n_analyses,
             upper_bounds=tri[0],
@@ -295,19 +296,156 @@ def _(
     return sm_null, tri_ess
 
 
+@app.cell
+def _(
+    alpha,
+    bd,
+    beta,
+    delta,
+    deltas,
+    n_analyses,
+    n_per_stage,
+    null,
+    sim,
+    variance,
+):
+    obj7_dict = {
+        "ns" : [],
+        "delta" : [],
+        "ess_null" : [],
+        "ess_alt" : [],
+        "power" : [],
+        "alpha" : []
+    }
+
+    for b, delta_ in enumerate(deltas):
+
+        for a, n_per in enumerate(n_per_stage):
+            res = bd.calculate_bayes_dec_boundaries(
+                n_analyses,
+                alpha,
+                beta,
+                delta,
+                variance,
+                n_per,
+                7,
+                eta=delta_,
+                return_all=True
+            )
+
+            fail_ind = res[3]
+
+            if fail_ind == 1:
+
+
+                obj7_dict["ns"].append(n_per)
+                obj7_dict["delta"].append(delta_)
+
+                simuu = sim.group_sequential_designs(
+                    n_analyses=n_analyses,
+                    upper_bounds=res[0][0],
+                    lower_bounds=res[0][1],
+                    n_patients=n_per,
+                    null_hypothesis=null,
+                    alt_hypothesis=delta_,
+                    variance=variance
+                )
+
+                obj7_dict["alpha"].append(simuu[0])
+                obj7_dict["power"].append(simuu[1])
+                obj7_dict["ess_null"].append(simuu[2])
+                obj7_dict["ess_alt"].append(simuu[3])
+    return (obj7_dict,)
+
+
+@app.cell
+def _(obj7_dict, pd):
+    obj7_df = pd.DataFrame(obj7_dict)
+    return (obj7_df,)
+
+
+@app.cell
+def _(obj7_df):
+    min_ess_null_idx = obj7_df.groupby("delta").idxmin()["ess_null"]
+    min_ess_alt_idx = obj7_df.groupby("delta").idxmin()["ess_alt"]
+    return (min_ess_alt_idx,)
+
+
+@app.cell
+def _(delta, deltas, n_analyses, null, sim, variance):
+    # MAMS bounds
+    # Stage 1 Stage 2 Stage 3
+    # Upper bound:   2.132   1.885   1.847
+    # Lower bound:   0.000   1.131   1.847
+
+    mams_bounds = [
+        [2.132 ,  1.885  , 1.847],
+        [0.000  , 1.131 ,  1.847]
+    ]
+
+    mams_ess = []
+
+    print(sim.group_sequential_designs(
+        n_analyses=n_analyses,
+        upper_bounds=mams_bounds[0],
+        lower_bounds=mams_bounds[1],
+        n_patients=65,
+        null_hypothesis=null,
+        alt_hypothesis=delta,
+        variance=variance
+    ))
+
+    for q in deltas:
+        mams_ess.append(sim.group_sequential_designs(
+            n_analyses=n_analyses,
+            upper_bounds=mams_bounds[0],
+            lower_bounds=mams_bounds[1],
+            n_patients=65,
+            null_hypothesis=null,
+            alt_hypothesis=q,
+            variance=variance
+        )[3])
+    return (mams_ess,)
+
+
+@app.cell
+def _(min_ess_alt_idx, obj7_df, pd, tri_ess):
+    pd.concat(
+        [
+            obj7_df.loc[min_ess_alt_idx, ["delta", "ns", "ess_alt"]].reset_index(drop=True),
+            pd.Series(tri_ess),
+            pd.Series(obj7_df.loc[min_ess_alt_idx, "ess_alt"] < tri_ess).reset_index(drop=True)
+        ],
+        axis=1,
+    ).set_axis(["delta", "N", "ess_alt", "tri_ess", "ess_alt_lt_tri_ess"], axis=1)
+    return
+
+
+@app.cell
+def _():
+    # obj7_df.loc[min_ess_null_idx, ["delta", "ns", "ess_null"]]
+    return
+
+
 @app.cell(expand_output=True)
-def _(ax, deltas, fig, tri_ess):
+def _(ax, deltas, fig, mams_ess, min_ess_alt_idx, obj7_df, tri_ess):
     ax[0].set_title("ESS under alt across deltas - Bayes null optimal")
     ax[0].set_xlabel("Delta")
     ax[0].set_ylabel("Expected sample size under alt")
 
     ax[0].plot(deltas, tri_ess, color = "red")
+    ax[0].plot(deltas, mams_ess, color = "blue")
+    # ax[0].plot(deltas,  obj7_df.loc[min_ess_null_idx, "ess_null"], c = "black")
+    ax[0].plot(deltas,  obj7_df.loc[min_ess_alt_idx, "ess_alt"], c = "black", linestyle="dashed")
 
     ax[1].set_title("ESS under alt across deltas - Bayes alt optimal")
     ax[1].set_xlabel("Delta")
-    ax[1].set_ylabel("Expected sample size under alt")
+    ax[1].set_ylabel("Expected sample size under null")
 
     ax[1].plot(deltas, tri_ess, color = "red")
+    ax[1].plot(deltas, mams_ess, color = "blue")
+    # ax[1].plot(deltas,  obj7_df.loc[min_ess_null_idx, "ess_null"], c = "black")
+    ax[1].plot(deltas,  obj7_df.loc[min_ess_alt_idx, "ess_alt"], c = "black", linestyle="dashed")
 
     fig
     return
