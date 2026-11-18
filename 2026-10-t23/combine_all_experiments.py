@@ -38,7 +38,7 @@ def _():
 
 @app.cell
 def _():
-    bayes_opt_dir = "/tf/experiments_rand_simann_bo/bayes_opt_experiments/"
+    bayes_opt_dir = "/workspace/experiments_rand_simann_bo/bayes_opt_experiments/"
     return (bayes_opt_dir,)
 
 
@@ -55,16 +55,22 @@ def _(data_files):
     for i, file in enumerate(data_files):
         if file.endswith(".csv") and file.startswith("3-stage"):
             try: 
-                keys.append("3-stage_" + file.split("haltons_")[1])
+                tmp_list = file.split("_loss_")
+                prefix = tmp_list[0]
+                suffix = tmp_list[1].split("haltons_")[1]
+                keys.append(prefix + "_" + suffix)
             except IndexError:
-                keys.append("3-stage_" + file.split("_loss_")[1])
+                tmp_list = file.split("_loss_")
+                prefix = tmp_list[0]
+                suffix = tmp_list[1]
+                keys.append(prefix + "_" + suffix)
         elif file.endswith(".csv") and file.startswith("3-stage") and ("no_n" in file):
-            keys.append("5-stage_" + file.split("_loss_")[1])
+            keys.append("3-stage_" + file.split("_loss_")[1])
         elif file.endswith(".csv") and file.startswith("5-stage"):
-            try: 
-                keys.append("5-stage_" + file.split("haltons_")[1])
-            except IndexError:
-                keys.append("5-stage_" + file.split("_loss_")[1])
+            tmp = file.split("haltons_")
+            prefix = tmp[0].split("_loss_")[0]
+            suffix = tmp[1]
+            keys.append(prefix + "_" + suffix)
     return (keys,)
 
 
@@ -275,7 +281,7 @@ def _(best_bo_designs_5_stage, plot_best_design5):
 
 @app.cell
 def _():
-    rand_dir = "/tf/experiments_rand_simann_bo/random_search_experiments/"
+    rand_dir = "/workspace/experiments_rand_simann_bo/random_search_experiments/"
     return (rand_dir,)
 
 
@@ -355,7 +361,7 @@ def _(best_rand_designs_5_stage, plot_best_design5):
 
 @app.cell
 def _():
-    sim_ann_dir = "/tf/experiments_rand_simann_bo/simulated_annealing_experiments/"
+    sim_ann_dir = "/workspace/experiments_rand_simann_bo/simulated_annealing_experiments/"
     return (sim_ann_dir,)
 
 
@@ -387,7 +393,7 @@ def _(f, pd, sim_ann_dir, sim_ann_files):
 def _(sim_ann_3_stage):
     alpha_mask_sim_ann_3_stage = (0.0495 <= sim_ann_3_stage["alpha"]) & (sim_ann_3_stage["alpha"] <= 0.0505)
     power_mask_sim_ann_3_stage = (0.899 <= sim_ann_3_stage["power"]) & (sim_ann_3_stage["power"] <= 0.91)
-    mESS_mask_sim_ann_3_stage = (100 <= sim_ann_3_stage["max_ess"]) & (sim_ann_3_stage["max_ess"] <= 136)
+    mESS_mask_sim_ann_3_stage = (100 <= sim_ann_3_stage["max_ess"]) & (sim_ann_3_stage["max_ess"] <= 140)
     return (
         alpha_mask_sim_ann_3_stage,
         mESS_mask_sim_ann_3_stage,
