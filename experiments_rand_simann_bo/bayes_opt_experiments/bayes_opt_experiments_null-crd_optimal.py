@@ -1,0 +1,998 @@
+import marimo
+
+__generated_with = "0.25.2"
+app = marimo.App(width="medium")
+
+
+@app.cell
+def _():
+    import marimo as mo
+
+    return (mo,)
+
+
+@app.cell
+def _():
+    import time
+    import gc
+    import scipy.stats as stats
+    import numpy as np
+    import pandas as pd
+    import tensorflow as tf
+    import tensorflow_probability as tfp
+
+    return gc, np, tf, time
+
+
+@app.cell
+def _():
+    import gpflow
+    import trieste
+    from trieste.space import Box
+    from trieste.models.gpflow.models import GaussianProcessRegression
+
+    return Box, GaussianProcessRegression, gpflow, trieste
+
+
+@app.cell
+def _():
+    # group sequential design assessment imports
+    from py_group_sequential_designs import generate_boundaries as bd
+    from py_group_sequential_designs import feasibility_penalty as fp
+    from py_group_sequential_designs import boundary_manipulations as fmt_bd
+    from py_group_sequential_designs import function_to_minimize as fn_min
+    from py_group_sequential_designs import generate_gpr_input as gen_input
+    from py_group_sequential_designs import simulate as sim
+    from py_group_sequential_designs import sample_size as ss
+
+    return bd, fmt_bd, fn_min, fp, sim, ss
+
+
+@app.cell
+def _(mo):
+    num_analyses = mo.ui.number(label="Number of analyses = ", value=5, start=1)
+
+    mo.vstack([num_analyses])
+    return (num_analyses,)
+
+
+@app.cell
+def _(num_analyses, ss):
+    target_alpha = 0.05
+    target_power = 0.9
+    delta0 = 0.
+    delta1 = 1.
+    sigma2 = 9.
+
+    mu = ss.sample_size_means(
+        ratio=1,
+        variance=sigma2,
+        power=target_power,
+        alpha=target_alpha,
+        delta=delta1
+    )
+
+    print(f"We are running an experiment with a trial design with {num_analyses.value} stages, with:\na target alpha of {target_alpha},\na target power of {target_power},\na null hypothesis of {delta0},\nan alternative hypothesis of {delta1},\nand an assumed variance of {sigma2}\n")
+    print(f"Single-stage sample size mu = {mu:.2f}")
+    return delta0, delta1, mu, sigma2, target_alpha, target_power
+
+
+@app.cell
+def _(mo):
+    scaled_loss = mo.ui.switch(label="Scaled loss")
+    return (scaled_loss,)
+
+
+@app.cell
+def _(mo, scaled_loss):
+    mo.vstack([scaled_loss, mo.md(f"Has value: {scaled_loss.value}")])
+    return
+
+
+@app.cell
+def _(mo):
+    remove_n_beta = mo.ui.switch(label="Remove n")
+    return (remove_n_beta,)
+
+
+@app.cell
+def _(mo, remove_n_beta):
+    mo.vstack([remove_n_beta, mo.md(f"Has value: {remove_n_beta.value}")])
+    return
+
+
+@app.cell
+def _(fn_min, fp, remove_n_beta, scaled_loss, sim):
+    # objective function with expected sample size calculated as ess_alt or ess_null
+    # rather than max_ess, which calculates the maximum expected sample size
+    if scaled_loss.value:
+        def obj_f(
+                mu,
+                upper_bounds,
+                lower_bounds,
+                n_patients,
+                n_analyses,
+                target_power,
+                target_alpha,
+                null_hypothesis,
+                alternative_hypothesis,
+                variance,
+                min_sample_size,
+                max_sample_size):
+
+            trial_sim = sim.group_sequential_designs(
+                n_analyses = n_analyses,
+                upper_bounds = upper_bounds,
+                lower_bounds = lower_bounds,
+                n_patients = n_patients, 
+                null_hypothesis = null_hypothesis,
+                alt_hypothesis = alternative_hypothesis,
+                variance = variance
+            )
+
+            alpha_prime = trial_sim[0]
+            beta_prime = 1-trial_sim[1]
+            ess = trial_sim[3] # ess_null is at [2] and ess_alt is at [3]
+
+            if remove_n_beta.value:
+                penalty = fp.tub_paraboloid_no_beta(
+                    alpha = target_alpha,
+                    alpha_prime = alpha_prime,
+                    min_sample_size=min_sample_size,
+                    max_sample_size=max_sample_size,
+                    max_ess=ess,
+                    alpha_factor=100,
+                    max_ess_factor=8
+                )
+            else:
+                penalty = fp.tub(
+                    power = target_power,
+                    alpha = target_alpha,
+                    alpha_prime = alpha_prime,
+                    beta_prime = beta_prime,
+                    min_sample_size=min_sample_size,
+                    max_sample_size=max_sample_size,
+                    max_ess=ess,
+                    alpha_factor=100,
+                    beta_factor=100,
+                    max_ess_factor=8
+                )
+
+            return (
+                alpha_prime,
+                1-beta_prime,
+                ess,
+                penalty
+            )
+    else:
+        def obj_f(
+                mu,
+                upper_bounds,
+                lower_bounds,
+                n_patients,
+                n_analyses,
+                target_power,
+                target_alpha,
+                null_hypothesis,
+                alternative_hypothesis,
+                variance):
+
+            trial_sim = sim.group_sequential_designs(
+                n_analyses = n_analyses,
+                upper_bounds = upper_bounds,
+                lower_bounds = lower_bounds,
+                n_patients = n_patients, 
+                null_hypothesis = null_hypothesis,
+                alt_hypothesis = alternative_hypothesis,
+                variance = variance
+            )
+
+            alpha_prime = trial_sim[0]
+            beta_prime = 1-trial_sim[1]
+            ess = trial_sim[3] # ess_null is at [2] and ess_alt is at [3]
+
+            if remove_n_beta.value:
+                penalty = fp.smooth_pen_no_beta(
+                    mu = mu,
+                    alpha = target_alpha,
+                    alpha_prime = alpha_prime
+                )
+            else:
+                penalty = fp.smooth_penalty(
+                    mu = mu,
+                    power = target_power,
+                    alpha = target_alpha,
+                    alpha_prime = alpha_prime,
+                    beta_prime = beta_prime
+                )
+
+            f_val = fn_min.function_to_minimize(max_ess_val = ess/mu, penalty = penalty)
+
+            return (
+                alpha_prime,
+                1-beta_prime,
+                ess,
+                f_val
+            )
+    return (obj_f,)
+
+
+@app.cell
+def _(
+    bd,
+    delta0,
+    delta1,
+    fmt_bd,
+    mu,
+    np,
+    num_analyses,
+    obj_f,
+    scaled_loss,
+    sigma2,
+    ss,
+    target_alpha,
+    target_power,
+):
+    tri = bd.calculate_triangular_boundaries(
+        n_analyses = num_analyses.value,
+        alpha = target_alpha,
+        delta = delta1
+    )
+
+    tri_n_patients = ss.find_sample_size(
+        power_target = target_power,
+        n_analyses = num_analyses.value,
+        upper_bounds = tri[0],
+        lower_bounds = tri[1],
+        null_hypothesis = delta0,
+        alt_hypothesis = delta1,
+        variance = sigma2
+    )[0]
+
+    if scaled_loss.value:
+        tri_alpha, tri_power, tri_ess, tri_obj = obj_f(
+            mu = mu,
+            upper_bounds = tri[0],
+            lower_bounds = tri[1],
+            n_analyses = num_analyses.value,
+            n_patients = tri_n_patients,
+            target_power = target_power,
+            target_alpha = target_alpha,
+            null_hypothesis = delta0,
+            alternative_hypothesis = delta1,
+            variance = sigma2,
+            min_sample_size=20,
+            max_sample_size=160
+        )
+    else:
+        tri_alpha, tri_power, tri_ess, tri_obj = obj_f(
+            mu = mu,
+            upper_bounds = tri[0],
+            lower_bounds = tri[1],
+            n_analyses = num_analyses.value,
+            n_patients = tri_n_patients,
+            target_power = target_power,
+            target_alpha = target_alpha,
+            null_hypothesis = delta0,
+            alternative_hypothesis = delta1,
+            variance = sigma2
+        )
+
+    tri_params = fmt_bd.boundaries_to_reverse(
+        upper_bounds = tri[0],
+        lower_bounds = tri[1]
+    )
+
+    c0 = tri_params[0]
+
+    print(f"Original trriangular params: {np.round(np.concatenate((tri[0], tri[1])), 4)}")
+    print(f"Reparameterized triangular params: {np.round(tri_params, 4)}")
+    print(f"Meeting point c0 = {c0:.4f}\n")
+    print(f"Triangular benchmark objective: {tri_obj:.4f}")
+    print(f"Triangular alpha: {tri_alpha:.4f}")
+    print(f"Triangular delta alpha: {abs(0.05-tri_alpha):.4f}")
+    print(f"Triangular power: {tri_power:.4f}")
+    print(f"Triangular delta beta: {abs(0.9-tri_power):.4f}")
+    print(f"Triangular sample size: {tri_n_patients:.1f}")
+    print(f"Triangular max ESS: {tri_ess:.1f}")
+    return c0, tri_params
+
+
+@app.cell
+def _(c0, mo, np, num_analyses, remove_n_beta, tri_params):
+    search_space_boxes = ['large_box', 'large_box_5_stages', 'small_box', 'triang_box']
+
+    # create a single dropdown
+    space_dropdown = mo.ui.dropdown(
+        options=search_space_boxes,
+        value="large_box",
+        label="Choose search space:"
+    )
+
+    lower_spaces = {}
+    upper_spaces = {}
+
+    for key in search_space_boxes:
+        if key == "triang_box":
+            lower_spaces[key] = np.array([max(0, p - 0.4) for p in tri_params] + [20])
+            upper_spaces[key] = np.array([p + 0.4 for p in tri_params] + [160])
+            continue
+
+        n = num_analyses.value * 2
+        lower = np.zeros(n)
+        upper = np.ones(n)
+
+        if key == "large_box":
+            upper = upper * 4
+            lower[0] = c0 - 3.0
+            upper[0] = c0 + 3.0
+        elif key == "large_box_5_stages":
+            upper = upper * 2
+            lower[0] = c0 - 2.0
+            upper[0] = c0 + 2.0
+            # accounts for the last stage before 
+            # meeting point needs to be a larger 
+            # value to get to $c$ in some cases
+            upper[2] = 4
+        elif key == "small_box":
+            lower[0] = c0 - 1.0
+            upper[0] = c0 + 1.0
+            upper[2] = 4.0
+
+        if key == "large_box":
+            lower[-1] = 20
+            upper[-1] = 160
+        elif key == "large_box_5_stages":
+            lower[-1] = 20
+            upper[-1] = 60
+
+        if remove_n_beta.value:
+            #lower[1:n-1] = lower[1:n-1] + 1e-3
+            lower_spaces[key] = lower[0:n-1]
+            upper_spaces[key] = upper[0:n-1]
+        else:
+            lower_spaces[key] = lower
+            upper_spaces[key] = upper
+    return lower_spaces, space_dropdown, upper_spaces
+
+
+@app.cell
+def _(lower_spaces, mo, np, space_dropdown, upper_spaces):
+    # get active arrays based on the dropdown current value
+    current_lower = lower_spaces[space_dropdown.value]
+    current_upper = upper_spaces[space_dropdown.value]
+
+    mo.vstack(
+        [
+            space_dropdown, 
+            mo.md(f"**Lower value:** {np.round(current_lower, decimals=3)}"),
+            mo.md(f"**Upper value:** {np.round(current_upper, decimals=3)}")
+        ]
+    )
+    return current_lower, current_upper
+
+
+@app.cell
+def _():
+    n_experiments = 50
+    n_loops = 500
+    return n_experiments, n_loops
+
+
+@app.cell
+def _(n_loops):
+    # generate labels for data frame
+    # if we have experiments <1000, then we need 3 spaces 
+    # to fill. this is the length of the string and then
+    # we raise 10 to this number to obtain the labels
+    space_needed_for_label = len(str(n_loops))
+    label_range = 10**(space_needed_for_label)
+    return (label_range,)
+
+
+@app.cell
+def _(num_analyses):
+    # create the data container that will collect all the values of interest
+    # we will use an empty dictionary for memory efficiency and the convert
+
+    # dynamic labels for the bounds
+    upper_labels = [f"upper{i+1}" for i in range(num_analyses.value)]
+    lower_labels = [f"lower{i+1}" for i in range(num_analyses.value - 1)]
+
+    # labels will be used again in the experiment loop
+    labels = upper_labels + lower_labels
+
+    ordered_keys = ["index"] + labels + [
+        "alpha", "power", "sample_size", "max_ess", 
+        "obj_func", "execute_time", "seed"
+    ]
+
+    bayes_opt_results = {key: [] for key in ordered_keys}
+    return bayes_opt_results, labels
+
+
+@app.cell
+def _(np):
+    rng = np.random.default_rng(seed = 437591)
+    return (rng,)
+
+
+@app.cell
+def _(bayes_opt_results, n_experiments, n_loops, np, rng):
+    # create a list of seeds to use
+    seed_list = [] # for filling the dictionary
+    short_seed_list = [] # for using in the loop
+
+    for _ in range(n_experiments):
+        # get entropy for the random number generator seed
+        seed = int(np.round(rng.uniform(0, 2**32 - 1)))
+
+        # check that we are not repeating seeds
+        if seed in short_seed_list:
+            seed = int(np.round(rng.uniform(0, 2**32 - 1)))
+
+        short_seed_list.append(seed)
+
+        # create a long seed set to collect into the data.frame
+        seeds = np.repeat(seed, n_loops)
+        seed_list += seeds.tolist()
+
+    bayes_opt_results["seed"] = seed_list
+    return (short_seed_list,)
+
+
+@app.cell
+def _(bayes_opt_results, label_range, n_experiments, n_loops):
+    # generate the indices using the pattern described above
+    index_list = [
+        i 
+        for start in range(label_range, (n_experiments+1)*label_range, label_range)
+        for i in range(start + 1, start + (n_loops+1))
+    ]
+
+    bayes_opt_results["index"] = index_list
+    return
+
+
+@app.cell
+def _(mo):
+    scale_input = mo.ui.switch(label="Min-max scale inputs")
+    return (scale_input,)
+
+
+@app.cell
+def _(mo, scale_input):
+    mo.vstack([scale_input, mo.md(f"Has value: {scale_input.value}")])
+    return
+
+
+@app.cell
+def _(mo):
+    scale_output = mo.ui.switch(label="Z-scale outputs")
+    return (scale_output,)
+
+
+@app.cell
+def _(mo, scale_output):
+    mo.vstack([scale_output, mo.md(f"Has value: {scale_output.value}")])
+    return
+
+
+@app.cell
+def _(mo):
+    num_haltons = mo.ui.number(label="Number of Halton points = ", value=500, start=100, stop=500, step=100)
+
+    mo.vstack([num_haltons])
+    return (num_haltons,)
+
+
+@app.cell
+def _(mo):
+    do_not_train_error = mo.ui.switch(label="Do not train error")
+    return (do_not_train_error,)
+
+
+@app.cell
+def _(do_not_train_error, mo):
+    mo.vstack([do_not_train_error, mo.md(f"Has value: {do_not_train_error.value}")])
+    return
+
+
+@app.cell
+def _(do_not_train_error, mo):
+    if do_not_train_error.value:
+        radio = mo.ui.radio(
+            options={
+                "1e-1": 1e-1,
+                "1e-2": 1e-2,
+                "1e-3": 1e-3,
+                "1e-4": 1e-4,
+                "1e-5": 1e-5,
+            },
+            value="1e-3",
+            label="Likelihood variance",
+        )
+        radio
+    else:
+        radio = mo.ui.radio(
+            options={"1": 1},
+            label="Initial value for likelihood variance",
+        )
+    radio
+    return (radio,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Bayes opt loop
+    """)
+    return
+
+
+@app.cell
+def _(Box, current_lower, current_upper, scale_input):
+    if scale_input.value:
+        # ensure all dimensions are [0,1] with min-max scaling
+        # defaults to min and max are set as current upper and lower
+        def min_max_scale(x, min, max):
+            """Transform values to [0, 1]."""
+            return (x - min) / (max - min)
+
+        # defaults to min and max are set as current upper and lower
+        def min_max_unscale(x_scaled, min, max):
+            """Transform normalized [0, 1] values back."""
+            return x_scaled * (max - min) + min
+
+        # because we are min-max scaling, search space will be [0,1]^D
+        search_space = Box(
+            lower = [0.0] * len(current_lower), 
+            upper = [1.0] * len(current_upper)
+        )
+
+        print(search_space.lower)
+        print(search_space.upper)
+    else:
+        search_space = Box(
+            lower = current_lower,
+            upper = current_upper
+        )
+
+        print(search_space.lower)
+        print(search_space.upper)
+    return min_max_unscale, search_space
+
+
+@app.cell
+def _(np, scale_output):
+    if scale_output.value:
+        def z_score_scale(x, mu, sigma, axis = 0):
+            """Standardize input array using Z-score scale: (x - mu) / sigma."""
+            return (x - mu) / sigma
+
+        def z_score_unscale(x_scaled, mu, sigma, axis = 0):
+            """Restore scaled data back to original space: (x_scaled * sigma) + mu."""
+            return (x_scaled * np.expand_dims(sigma, axis=axis)) + np.expand_dims(mu, axis=axis)
+    return (z_score_scale,)
+
+
+@app.cell
+def _(
+    GaussianProcessRegression,
+    bayes_opt_results,
+    current_lower,
+    current_upper,
+    delta0,
+    delta1,
+    do_not_train_error,
+    fmt_bd,
+    gc,
+    gpflow,
+    labels,
+    min_max_unscale,
+    mu,
+    n_experiments,
+    n_loops,
+    np,
+    num_analyses,
+    num_haltons,
+    obj_f,
+    radio,
+    remove_n_beta,
+    scale_input,
+    scale_output,
+    scaled_loss,
+    search_space,
+    short_seed_list,
+    sigma2,
+    ss,
+    target_alpha,
+    target_power,
+    tf,
+    time,
+    trieste,
+    z_score_scale,
+):
+    for i in range(n_experiments):
+
+        np.random.seed(short_seed_list[i])
+        tf.random.set_seed(short_seed_list[i])
+
+        ########################
+        # Halton initialisation #
+        ########################
+        initial_x = search_space.sample_halton(num_haltons.value, seed = short_seed_list[i])
+
+        # search space is [0,1]^D, thus, need to unscale prior to getting y
+        # values for the initial GP fit
+        if scale_input.value:
+            initial_x_unscaled = min_max_unscale(
+                x_scaled = initial_x,
+                min = current_lower,
+                max = current_upper
+            )
+
+            initial_points = initial_x_unscaled
+        else:
+            initial_points = np.array(initial_x, dtype=np.float64)
+
+        initial_y = []
+
+        # for each point
+        for point in initial_points:
+
+            if remove_n_beta.value:
+                bounds = point
+            else:
+                bounds = point[:-1]
+
+            bounds = fmt_bd.reverse_to_boundaries(params = bounds, K = num_analyses.value)
+
+            if remove_n_beta.value:
+                sample_size = ss.find_sample_size(
+                    power_target = target_power,
+                    n_analyses = num_analyses.value,
+                    upper_bounds = bounds[0],
+                    lower_bounds = bounds[1],
+                    null_hypothesis = delta0,
+                    alt_hypothesis = delta1,
+                    variance = sigma2
+                )[0]
+            else:
+                sample_size = point[(num_analyses.value*2)-1]
+
+            if scaled_loss.value:
+                _, _, _, initial_y_new = obj_f(
+                    mu = mu,
+                    upper_bounds = bounds[0],
+                    lower_bounds = bounds[1],
+                    n_analyses = num_analyses.value,
+                    n_patients = sample_size,
+                    target_power = target_power,
+                    target_alpha = target_alpha,
+                    null_hypothesis = delta0,
+                    alternative_hypothesis = delta1,
+                    variance = sigma2,
+                    min_sample_size=20,#search_space.lower[(2 * num_analyses.value) - 1],
+                    max_sample_size=160#search_space.upper[(2 * num_analyses.value) - 1]
+                )
+            else:
+                _, _, _, initial_y_new = obj_f(
+                    mu = mu,
+                    upper_bounds = bounds[0],
+                    lower_bounds = bounds[1],
+                    n_analyses = num_analyses.value,
+                    n_patients = sample_size,
+                    target_power = target_power,
+                    target_alpha = target_alpha,
+                    null_hypothesis = delta0,
+                    alternative_hypothesis = delta1,
+                    variance = sigma2
+                )
+
+            initial_y.append(initial_y_new)
+
+        # turn y into [N,1] column vector
+        initial_y_formatted = np.array(initial_y).reshape(-1, 1)
+
+        # scale y as well
+        if scale_output.value:
+            y_mu = np.mean(initial_y_formatted)
+            y_sigma = np.std(initial_y_formatted)
+            initial_y_formatted = z_score_scale(
+                initial_y_formatted,
+                mu = y_mu,
+                sigma = y_sigma
+            )
+
+        initial_data = trieste.data.Dataset(
+            query_points = initial_x,
+            observations = tf.convert_to_tensor(initial_y_formatted, dtype=tf.float64)
+        )
+
+        #######################
+        # GP regression model #
+        #######################
+        if scale_input.value:
+            # min-max scaled space, all dimensions are [0, 1].
+            initial_lengthscales = [1.0] * len(current_lower)
+        else:
+            # Calculate the span of each dimension (upper - lower)
+            ranges = [u - l for u, l in zip(current_upper, current_lower)]
+
+            # Initialize ARD lengthscales to 20% of each dimension's range
+            # for large 3-stage box, e.g., 
+            # [1.2, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 28.0]
+            initial_lengthscales = [r * 0.2 for r in ranges]
+
+        kernel = gpflow.kernels.Matern52(
+            lengthscales = initial_lengthscales
+        )
+
+        # these priors regularize the lengthscale to have ~99% of its probability
+        # distribution between +/- exp(3*scale)
+        # it sets the same prior on all lengthscales; if a different prior is 
+        # needed for different dimensions, can do:
+        # loc = gpflow.utilities.to_default_float([0.0, 1.0, -0.5])
+        # scale = gpflow.utilities.to_default_float([1.0, 2.0, 0.5])
+        # kernel.lengthscales.prior = tfp.distributions.LogNormal(
+        #     loc=loc,
+        #     scale=scale,
+        # )
+        # kernel.lengthscales.prior = tfp.distributions.LogNormal(
+        #     gpflow.utilities.to_default_float(0), gpflow.utilities.to_default_float(2)
+        # )
+        # kernel.variance.prior = tfp.distributions.LogNormal(
+        #     gpflow.utilities.to_default_float(0), gpflow.utilities.to_default_float(3)
+        # )
+
+        # consider decreasing for K=3?
+        likelihood = gpflow.likelihoods.Gaussian(variance = radio.value)
+
+        if do_not_train_error.value:
+            gpflow.set_trainable(likelihood, False)
+
+        gpr = gpflow.models.GPR(
+            data      = (initial_x, initial_y_formatted),
+            kernel    = kernel,
+            likelihood = likelihood
+        )
+
+        ###################
+        # Bayes opt model #
+        ###################
+        bayes_opt_model = GaussianProcessRegression(gpr)
+
+        # from the source code for trieste.acquisition.optimizer:
+        # NUM_SAMPLES_MIN = 5000
+        # NUM_SAMPLES_DIM = 1000
+        # NUM_RUNS_DIM = 10
+        # using the Trieste recommendation from their documentation,
+        # num_initial_samples = max(NUM_SAMPLES_MIN, NUM_SAMPLES_DIM * D)
+        # where D is the dimensions (K=3 -> D=6; K=5 -> D=10)
+        # num_optimization_runs = NUM_RUNS_DIM * D (10 * D)
+        ask_tell = trieste.ask_tell_optimization.AskTellOptimizer(
+            search_space     = search_space,
+            datasets         = initial_data,
+            models           = bayes_opt_model,
+            acquisition_rule = trieste.acquisition.rule.EfficientGlobalOptimization(
+                optimizer = trieste.acquisition.optimizer.generate_continuous_optimizer(
+                #    num_initial_samples=10000,  # see above for reason
+                #    num_optimization_runs=500,  # see above for reason
+                    num_recovery_runs=500        # left at default
+                )
+            )
+        )
+
+        ############################
+        # Start the bayes opt loop #
+        ############################
+        start_time = time.time()
+
+        # there are n_loops number of reverse_bounds to iterate through
+        for j in range(n_loops):
+            x_new = ask_tell.ask()
+            x_new_np = x_new.numpy() 
+
+            # print("new point:", x_new.numpy())
+            # print(ask_tell.to_result().try_get_final_dataset().query_points)
+            # print("cond#:", np.linalg.cond(kernel(ask_tell.to_result().try_get_final_dataset().query_points)))
+            # X = ask_tell.to_result().try_get_final_dataset().query_points.numpy()
+            # d = np.linalg.norm(X - x_new.numpy(), axis=1)
+            # print("dist:", d.min())
+
+            if remove_n_beta.value and not scale_input.value:
+                x_new_bounds = x_new_np
+
+                bounds = fmt_bd.reverse_to_boundaries(params = x_new_bounds, K = num_analyses.value)
+                bounds_list = np.concatenate( (bounds[0], bounds[1][0:num_analyses.value-1]) )
+
+                x_new_sample_size = ss.find_sample_size(
+                    power_target = target_power,
+                    n_analyses = num_analyses.value,
+                    upper_bounds = bounds[0],
+                    lower_bounds = bounds[1],
+                    null_hypothesis = delta0,
+                    alt_hypothesis = delta1,
+                    variance = sigma2
+                )[0]
+            elif remove_n_beta.value and scale_input.value:
+                x_new_bounds = min_max_unscale(
+                    x_scaled = x_new_np, 
+                    min = current_lower,
+                    max = current_upper
+                )
+
+                bounds = fmt_bd.reverse_to_boundaries(params = x_new_bounds, K = num_analyses.value)
+                bounds_list = np.concatenate( (bounds[0], bounds[1][0:num_analyses.value-1]) )
+
+                x_new_sample_size = ss.find_sample_size(
+                    power_target = target_power,
+                    n_analyses = num_analyses.value,
+                    upper_bounds = bounds[0],
+                    lower_bounds = bounds[1],
+                    null_hypothesis = delta0,
+                    alt_hypothesis = delta1,
+                    variance = sigma2
+                )[0]
+            elif scale_input.value and not remove_n_beta.value:
+                x_new_unscaled = min_max_unscale(
+                    x_scaled = x_new_np, 
+                    min = current_lower,
+                    max = current_upper
+                )
+                x_new_sample_size = x_new_unscaled[0][(num_analyses.value*2)-1]
+                x_new_bounds = x_new_unscaled[0][:-1]
+
+                bounds = fmt_bd.reverse_to_boundaries(params = x_new_bounds, K = num_analyses.value)
+                bounds_list = np.concatenate( (bounds[0], bounds[1][0:num_analyses.value-1]) )
+            else:          
+                x_new_sample_size = x_new_np[0][(num_analyses.value*2)-1]
+                x_new_bounds = x_new_np[0][:-1]
+
+                bounds = fmt_bd.reverse_to_boundaries(params = x_new_bounds, K = num_analyses.value)
+                bounds_list = np.concatenate( (bounds[0], bounds[1][0:num_analyses.value-1]) )
+
+            if scaled_loss.value:
+                alpha, power, max_ess, y_new = obj_f(
+                    mu = mu,
+                    upper_bounds = bounds[0],
+                    lower_bounds = bounds[1],
+                    n_analyses = num_analyses.value,
+                    n_patients = x_new_sample_size,
+                    target_power = target_power,
+                    target_alpha = target_alpha,
+                    null_hypothesis = delta0,
+                    alternative_hypothesis = delta1,
+                    variance = sigma2,
+                    min_sample_size=20,#search_space.lower[(2 * num_analyses.value) - 1].numpy(),
+                    max_sample_size=160#search_space.upper[(2 * num_analyses.value) - 1].numpy()
+                )
+            else:
+                alpha, power, max_ess, y_new = obj_f(
+                    mu = mu,
+                    upper_bounds = bounds[0],
+                    lower_bounds = bounds[1],
+                    n_analyses = num_analyses.value,
+                    n_patients = x_new_sample_size,
+                    target_power = target_power,
+                    target_alpha = target_alpha,
+                    null_hypothesis = delta0,
+                    alternative_hypothesis = delta1,
+                    variance = sigma2
+                )
+
+            # collect the boundaries using the labels
+            for _i in range(len(bounds_list)):
+                bayes_opt_results[labels[_i]].append(bounds_list[_i])
+
+            # collect the rest of the value of interest
+            bayes_opt_results["alpha"].append(alpha)
+            bayes_opt_results["power"].append(power)
+            bayes_opt_results["sample_size"].append(x_new_sample_size)
+            bayes_opt_results["max_ess"].append(max_ess)
+            bayes_opt_results["obj_func"].append(y_new)
+
+            if scale_output.value:
+                y_new_scaled = z_score_scale(
+                    y_new,
+                    mu = y_mu,
+                    sigma = y_sigma
+                )
+
+                ask_tell.tell(trieste.data.Dataset(
+                    query_points = x_new,
+                    observations = tf.convert_to_tensor([[y_new_scaled]], dtype=tf.float64)
+                ))
+            else:
+                ask_tell.tell(trieste.data.Dataset(
+                    query_points = x_new,
+                    observations = tf.convert_to_tensor([[y_new]], dtype=tf.float64)
+                ))
+
+            if j % 25 == 0:
+                print(".", end="")
+
+            if j % 100 == 0:
+                print(" ")
+                print(f"Kernel length scales: {gpr.kernel.lengthscales.numpy()}.")
+                print(f"Kernel variance: {gpr.kernel.variance.numpy()}.")
+                print(f"Likelihood variance: {gpr.likelihood.variance.numpy()}.")
+                print(f"Iteration {j}.")
+
+        stop_time = time.time()
+        execute_time = stop_time - start_time
+
+        bayes_opt_results["execute_time"].extend([execute_time] * n_loops)
+
+        if i % 1 == 0:
+            print("\n============================")
+            print(f"= Completed experiment {i+1}. =")
+            print("============================")
+
+        del ask_tell
+        del bayes_opt_model
+        del gpr
+        del kernel
+
+        # see https://www.tensorflow.org/api_docs/python/tf/keras/backend/clear_session
+        tf.keras.backend.clear_session()
+        gc.collect()
+    return
+
+
+@app.cell
+def _(
+    do_not_train_error,
+    n_experiments,
+    n_loops,
+    num_analyses,
+    num_haltons,
+    radio,
+    remove_n_beta,
+    scale_input,
+    scale_output,
+    scaled_loss,
+):
+    file_name = str(num_analyses.value) + "-stage"
+
+    if scaled_loss.value:
+        file_name += "_scaled_loss"
+    else:
+        file_name += "_smooth_loss"
+
+    file_name += "_" + str(n_experiments) + "x" + str(n_loops + num_haltons.value)
+
+    if do_not_train_error.value:
+        file_name += "_" + str(radio.value)
+
+    file_name += "_" + str(num_haltons.value) + "haltons"
+
+    if scale_input.value:
+        file_name += "_x_min_max"
+    if scale_output.value:
+        file_name += "_y_z_scaled"
+
+    file_name += "_alt_opt"
+
+    if remove_n_beta.value:
+        file_name += "_no_n"
+
+    file_name += ".csv"
+    return (file_name,)
+
+
+@app.cell
+def _(file_name):
+    file_name
+    return
+
+
+@app.cell
+def _(file_name):
+    path = "/workspace/experiments_rand_simann_bo/bayes_opt_experiments/null-alt-opt-data/" + file_name
+    return
+
+
+if __name__ == "__main__":
+    app.run()
